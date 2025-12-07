@@ -191,6 +191,8 @@ def create_tenant():
         if not subdomain_clean:
              return jsonify({"status": "error", "message": "Subdomínio inválido."}), 400
 
+        admin_token = subdomain_clean.upper() + "_TOKEN_MASTER" # Gera o MASTER TOKEN
+
         tenant_data = {
             "company_name": data['company_name'],
             "subdomain": subdomain_clean,
@@ -202,7 +204,7 @@ def create_tenant():
             "template_name": "vaquinha", 
             "status": "active",
             "primary_color": "#22C55E", 
-            "admin_token": subdomain_clean.upper() + "_TOKEN_MASTER" 
+            "admin_token": admin_token # Salva o MASTER TOKEN no tenant
         }
         
         headers = {
@@ -235,7 +237,7 @@ def create_tenant():
             "tenant_id": new_tenant_id,
             "email": data['email'],
             "password_hash": data['password'], 
-            "role": "Loja Admin", # <-- CORREÇÃO CRÍTICA PARA MULTITENANT
+            "role": "Loja Admin", 
             "name": data['company_name']
         }
         
@@ -246,11 +248,13 @@ def create_tenant():
             verify=False
         )
         
+        # 5. RESPOSTA DE SUCESSO com todos os dados
         return jsonify({
             "status": "success", 
             "message": "Sua vaquinha foi criada!",
             "url": f"http://{subdomain_clean}.leanttro.com",
-            "subdomain": subdomain_clean # Retorna o subdominio para uso no frontend
+            "subdomain": subdomain_clean, 
+            "admin_token": admin_token # <-- NOVO: Retorna o token para o frontend
         }), 200
 
     except Exception as e:
@@ -295,10 +299,10 @@ def confirm_vaquinha():
     directus_api_url = GLOBAL_SUCCESSFUL_URL or clean_url(os.getenv("DIRECTUS_URL", "https://directus.leanttro.com"))
     
     guest_name = request.form.get('name')
-    guest_email = request.form.get('email') # <-- NOVO: Puxa o campo email
+    guest_email = request.form.get('email')
     proof_file = request.files.get('proof')
 
-    if not all([guest_name, guest_email, proof_file]): # <-- NOVO: Valida o email
+    if not all([guest_name, guest_email, proof_file]):
         return jsonify({"status": "error", "message": "Nome, email e comprovante são obrigatórios."}), 400
 
     host = request.headers.get('Host', '')
@@ -343,7 +347,7 @@ def confirm_vaquinha():
         guest_data = {
             "tenant_id": tenant_id,
             "name": guest_name,
-            "email": guest_email, # <-- SALVA O EMAIL
+            "email": guest_email, 
             "payment_proof_url": file_id, 
             "status": "PENDING"
         }

@@ -91,15 +91,24 @@
                 const result = await response.json();
 
                 if (response.ok && result.status === 'success') {
-                    // --- MENSAGEM DE SUCESSO APRIMORADA COM AVISO ---
-                    const newUrl = result.url;
-                    
+                    // --- CAPTURA DE DADOS E CONSTRUÇÃO DOS LINKS ---
+                    const base_url = result.url;
+                    const admin_token = result.admin_token;
+                    const admin_url = `${base_url}/?admin=${admin_token}`;
+
                     messageDiv.className = 'mt-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded-md text-center';
                     
                     messageDiv.innerHTML = `
                         ✅ **Sucesso!** Sua Divisão de Valores com Leanttr foi criada.
-                        <p class="mt-2 text-lg font-bold">Acesse em alguns minutos: <a href="${newUrl}" target="_blank" class="text-blue-600 underline">${newUrl}</a></p>
                         
+                        <p class="mt-4 text-lg font-bold">
+                            Link da Vaquinha: <a href="${base_url}" target="_blank" class="text-blue-600 underline">${base_url}</a>
+                        </p>
+                        
+                        <div class="mt-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded-md">
+                            🔑 **Link do Painel de Aprovação (Organizador):** <a href="${admin_url}" target="_blank" class="text-yellow-900 underline font-mono break-all">${admin_url}</a>
+                        </div>
+
                         <p class="mt-4 text-sm text-red-700 font-semibold">
                             ⚠️ ATENÇÃO: O domínio precisa de 5 minutos para o certificado SSL ser ativado.
                             Se o link não funcionar imediatamente, **tente em 5 minutos**.
