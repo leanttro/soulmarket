@@ -32,15 +32,17 @@ def clean_url(url):
     return url
 
 # Função auxiliar para buscar coleções de forma segura
-def fetch_collection_data(url, collection_name, tenant_id, params=None):
+# ACEITA UMA URL ESPECÍFICA COMO PARAMETRO
+def fetch_collection_data(url_base, collection_name, tenant_id, params=None):
     if params is None:
         params = {}
     
     params["filter[tenant_id][_eq]"] = tenant_id
 
     try:
+        # AQUI USAMOS A URL BASE FORNECIDA
         response = requests.get(
-            f"{url}/items/{collection_name}",
+            f"{url_base}/items/{collection_name}",
             params=params,
             verify=False,
             timeout=5
@@ -70,6 +72,7 @@ def home():
     last_exception = None
 
     # 1. LOOP DE TENTATIVA DE CONEXÃO (TENANTS)
+    # A URL que funcionar aqui será usada para TUDO.
     for current_url in DIRECTUS_URLS_TO_TRY:
         current_url = clean_url(current_url)
         try:
@@ -85,7 +88,7 @@ def home():
             last_exception = e
             continue 
             
-    # 2. TRATAMENTO DE ERROS CRÍTICOS (Sem conexão)
+    # ... (Tratamento de erros e 404/confras - SEM ALTERAÇÃO) ...
     if not successful_url:
         return f"""
         <h1>ERRO CRÍTICO DE CONEXÃO</h1>
@@ -94,7 +97,6 @@ def home():
         <p><strong>Erro Técnico:</strong> {str(last_exception)}</p>
         """, 500
 
-    # 3. TRATAMENTO DE ERROS HTTP DO DIRECTUS
     if response.status_code != 200:
         return f"""
         <h1>ERRO NO DIRECTUS: {response.status_code}</h1>
@@ -105,15 +107,11 @@ def home():
 
     data = response.json()
     
-    # 4. TRATAMENTO DE LOJA NÃO ENCONTRADA (404 Lógico)
     if not data.get('data'):
-         # Se o subdomínio é 'confras', ele tenta carregar a página de cadastro
          if subdomain == 'confras':
              template_file_name = "confras.html"
-             # Não precisa passar dados, pois a página de cadastro é estática
              return render_template(template_file_name)
          
-         # Caso contrário, retorna 404
          return f"""
             <h1>Loja não encontrada (404)</h1>
             <p>O sistema conectou no Directus, mas não achou nenhuma loja com o subdomínio: <strong>{subdomain}</strong></p>
@@ -136,9 +134,14 @@ def home():
         }
     )
     
-    # Busca TODOS os Convidados (para o Painel do Organizador no template)
+    # CORREÇÃO CRÍTICA: Forçar o uso da URL Interna para buscar dados, 
+    # pois a URL externa pode falhar por SSL, mesmo com verify=False.
+    url_para_dados = successful_url
+    if successful_url == DIRECTUS_URL_EXTERNAL:
+        url_para_dados = DIRECTUS_URL_INTERNAL
+
     guests_all = fetch_collection_data(
-        successful_url, 
+        url_para_dados, # USA A URL INTERNA AQUI
         "vaquinha_guests", 
         tenant_id, 
         params={"sort": "-created_at"}
@@ -167,6 +170,8 @@ def home():
     )
 
 # --- ROTA DE API PARA CRIAÇÃO DE TENANT (Novo Endpoint de Escala) ---
+# ... (NÃO ALTERADO, POIS JÁ USA A VARIÁVEL GLOBAL DE URL) ...
+
 @app.route('/api/create_tenant', methods=['POST'])
 def create_tenant():
     ADMIN_TOKEN = os.getenv("DIRECTUS_ADMIN_TOKEN")
@@ -185,7 +190,6 @@ def create_tenant():
         
         # Limpeza do subdomínio
         subdomain_clean = data['subdomain'].lower()
-        # Permite apenas letras, números e hífens
         subdomain_clean = re.sub(r'[^a-z0-9-]', '', subdomain_clean) 
         
         if not subdomain_clean:
@@ -204,7 +208,7 @@ def create_tenant():
             "template_name": "vaquinha", 
             "status": "active",
             "primary_color": "#22C55E", 
-            "admin_token": admin_token # Salva o MASTER TOKEN no tenant
+            "admin_token": admin_token 
         }
         
         headers = {
@@ -248,19 +252,19 @@ def create_tenant():
             verify=False
         )
         
-        # 5. RESPOSTA DE SUCESSO com todos os dados
         return jsonify({
             "status": "success", 
             "message": "Sua vaquinha foi criada!",
             "url": f"http://{subdomain_clean}.leanttro.com",
             "subdomain": subdomain_clean, 
-            "admin_token": admin_token # <-- NOVO: Retorna o token para o frontend
+            "admin_token": admin_token 
         }), 200
 
     except Exception as e:
         return jsonify({"status": "error", "message": f"Erro interno do servidor: {str(e)}"}), 500
 
 # --- ROTA DE API PARA APROVAÇÃO (PATCH) ---
+# ... (NÃO ALTERADO) ...
 @app.route('/api/approve_guest', methods=['POST'])
 def approve_guest():
     
@@ -293,6 +297,7 @@ def approve_guest():
         return jsonify({"status": "error", "message": f"Erro de comunicação ao aprovar o registro: {str(e)}"}), 500
 
 # --- ROTA DE API PARA ENVIO DE COMPROVANTE (POST) ---
+# ... (NÃO ALTERADO) ...
 @app.route('/api/confirm_vaquinha', methods=['POST'])
 def confirm_vaquinha():
     
