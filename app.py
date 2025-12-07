@@ -1,12 +1,16 @@
 from flask import Flask, render_template, request, abort
 import requests
+import os
+import urllib3
+
+# Desabilita aquele aviso chato de segurança no log
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = Flask(__name__)
 
 # --- CONFIGURAÇÃO ---
-# URL do seu Directus (Aquele que você acabou de instalar)
-# Se estiver rodando local, use o endereço do Dokploy
-DIRECTUS_URL = "https://soul-market-directussoulmarket-wlthkj-7a0857-213-199-56-207.traefik.me" 
+# Pega do ambiente ou usa um valor padrão se não achar
+DIRECTUS_URL = os.getenv("DIRECTUS_URL", "https://soul-market-directussoulmarket-wlthkj-7a0857-213-199-56-207.traefik.me")
 
 def get_tenant_data(subdomain):
     """
@@ -14,18 +18,17 @@ def get_tenant_data(subdomain):
     """
     url = f"{DIRECTUS_URL}/items/tenants"
     
-    # Filtro mágico do Directus: ?filter[subdomain][_eq]=padaria
     params = {
         "filter[subdomain][_eq]": subdomain,
         "limit": 1
     }
     
     try:
-        response = requests.get(url, params=params)
+        # AQUI ESTÁ A CORREÇÃO: verify=False ignora o erro do certificado
+        response = requests.get(url, params=params, verify=False)
         data = response.json()
         
-        # Se achou a loja, retorna os dados dela
-        if data['data']:
+        if data.get('data'):
             return data['data'][0]
         return None
     except Exception as e:
@@ -39,37 +42,42 @@ def get_products(tenant_id):
     url = f"{DIRECTUS_URL}/items/products"
     params = {
         "filter[tenant_id][_eq]": tenant_id,
-        "filter[status][_eq]": "published" # Só traz o que tá ativo
+        "filter[status][_eq]": "published"
     }
-    response = requests.get(url, params=params)
-    return response.json()['data']
+    try:
+        # AQUI TAMBÉM: verify=False
+        response = requests.get(url, params=params, verify=False)
+        return response.json().get('data', [])
+    except Exception as e:
+        print(f"Erro ao buscar produtos: {e}")
+        return []
 
 @app.route('/')
 def home():
-    # 1. Descobre o subdomínio (Ex: padaria.localhost -> padaria)
+    # 1. Descobre o subdomínio
     host = request.headers.get('Host')
     
-    # Lógica simples para pegar o subdomínio (ajustar conforme seu domínio real)
+    # Lógica para pegar o subdomínio
     if 'localhost' in host or '127.0.0.1' in host:
-        # Para testes locais, vamos forçar um subdomínio ou pegar da URL
-        # Ex: padaria.localhost:5000
         subdomain = host.split('.')[0]
         if subdomain == 'localhost': 
-            subdomain = 'padaria' # Fallback para teste
+            subdomain = 'padaria'
     else:
-        # Em produção (padaria.soulmarket.com.br)
+        # Em produção, pega a primeira parte da URL
         subdomain = host.split('.')[0]
+
+    print(f"DEBUG: Tentando carregar loja para subdomínio: {subdomain}")
 
     # 2. Busca a Loja
     tenant = get_tenant_data(subdomain)
     
     if not tenant:
-        return "<h1>Loja não encontrada (404)</h1><p>Verifique o endereço.</p>", 404
+        return f"<h1>Loja não encontrada (404)</h1><p>Não achamos a loja: <strong>{subdomain}</strong> no Directus.</p><p>Verifique se o 'subdomain' está igualzinho lá.</p>", 404
 
-    # 3. Busca os Produtos dessa Loja
+    # 3. Busca os Produtos
     products = get_products(tenant['id'])
 
-    # 4. Renderiza o HTML passando as cores e dados da loja
+    # 4. Renderiza
     return render_template('home.html', tenant=tenant, products=products)
 
 if __name__ == '__main__':
