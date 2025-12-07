@@ -8,6 +8,7 @@
     <style>
         :root { --primary: #10B981; } /* Tailwind green-500 */
         .bg-primary { background-color: var(--primary); }
+        .btn-primary { background-color: var(--primary); color: white; }
     </style>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen">
@@ -35,6 +36,7 @@
                         .leanttro.com
                     </span>
                 </div>
+                <p class="text-xs text-gray-500 mt-1">Apenas letras minúsculas e números. Ex: festa-natal</p>
             </div>
             
             <div>
@@ -43,12 +45,12 @@
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-gray-700">Seu E-mail (Acesso):</label>
+                <label class="block text-sm font-medium text-gray-700">Seu E-mail (Acesso Admin):</label>
                 <input type="email" id="email" required class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary">
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-gray-700">Crie uma Senha (Acesso):</label>
+                <label class="block text-sm font-medium text-gray-700">Crie uma Senha (Acesso Admin):</label>
                 <input type="password" id="password" required class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary">
             </div>
             
@@ -69,7 +71,8 @@
 
             const data = {
                 company_name: document.getElementById('company_name').value,
-                subdomain: document.getElementById('subdomain').value.toLowerCase().replace(/[^a-z0-9]/g, ''),
+                // Garantimos que o subdomínio seja limpo: apenas letras e números
+                subdomain: document.getElementById('subdomain').value.toLowerCase().replace(/[^a-z0-9]/g, ''), 
                 email: document.getElementById('email').value,
                 pix_key: document.getElementById('pix_key').value,
                 password: document.getElementById('password').value
@@ -91,6 +94,9 @@
                 if (response.ok && result.status === 'success') {
                     messageDiv.className = 'mt-4 p-3 bg-green-100 text-green-700 rounded-md text-center';
                     messageDiv.innerHTML = `✅ **Sucesso!** Sua vaquinha foi criada. <a href="${result.url}" target="_blank" class="font-bold underline">Acesse aqui</a>.`;
+                    
+                    // Bloqueia o formulário para evitar múltiplos envios
+                    form.remove(); 
                 } else {
                     messageDiv.className = 'mt-4 p-3 bg-red-100 text-red-700 rounded-md text-center';
                     messageDiv.innerHTML = `⛔ Erro: ${result.message || 'Falha desconhecida.'}`;

@@ -182,7 +182,8 @@ def create_tenant():
         if not all(data.get(field) for field in required_fields):
             return jsonify({"status": "error", "message": "Preencha todos os campos obrigatórios."}), 400
         
-        subdomain_clean = data['subdomain'].lower().replace(/[^a-z0-9]/g, '')
+        # Limpa e valida o subdomínio
+        subdomain_clean = data['subdomain'].lower().replace(' ', '').replace(/[^a-z0-9]/g, '')
         if not subdomain_clean:
              return jsonify({"status": "error", "message": "Subdomínio inválido."}), 400
 
