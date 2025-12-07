@@ -22,8 +22,13 @@
     {% set confirmed_count = guests_confirmed | length %}
     {% set guest_limit = tenant.guest_limit | default(20) %}
     {% set is_limit_reached = confirmed_count >= guest_limit %}
-    {% set token_secreto = 'SEU_TOKEN_SECRETO' %} {# <-- SUBSTITUA AQUI PELO SEU TOKEN REAL! #}
+    
+    {# ESCALABILIDADE: TOKEN AGORA VEM DO CAMPO 'admin_token' NO DIRECTUS #}
+    {% set token_secreto = tenant.admin_token | default('master') %}
     {% set is_organizer_view = request.args.get('admin') == token_secreto %}
+    
+    {# URL EXTERNA PARA LINKS DE DOWNLOAD DE ASSETS #}
+    {% set asset_base_url = directus_external_url | default('https://directus.leanttro.com') %}
 
 
     <header class="bg-white shadow-md">
@@ -144,7 +149,8 @@
                                 <td class="py-3 px-4">{{ guest.created_at.split('T')[0] | default('N/D') }}</td>
                                 <td class="py-3 px-4">
                                     {% if guest.payment_proof_url %}
-                                        <a href="{{ DIRECTUS_URL_EXTERNAL }}/assets/{{ guest.payment_proof_url }}" target="_blank" class="text-blue-500 hover:text-blue-700 font-medium">
+                                        {# USANDO A URL EXTERNA DINÂMICA (PASSADA PELO app.py) #}
+                                        <a href="{{ asset_base_url }}/assets/{{ guest.payment_proof_url }}" target="_blank" class="text-blue-500 hover:text-blue-700 font-medium">
                                             Baixar/Ver Comprovante
                                         </a>
                                     {% else %}

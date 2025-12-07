@@ -152,8 +152,10 @@ def home():
         products=products, 
         sections=sections,
         guests_confirmed=guests_confirmed,
-        guests_all=guests_all, # NOVO: Lista completa
-        vaquinha_settings=vaquinha_settings
+        guests_all=guests_all,
+        vaquinha_settings=vaquinha_settings,
+        # NOVO: Variável para o link do asset no template HTML
+        directus_external_url=DIRECTUS_URL_EXTERNAL 
     )
 
 # --- ROTA DE API (Para o Formulário de Envio de Comprovante) ---
