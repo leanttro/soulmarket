@@ -2,6 +2,7 @@ import os
 import requests
 from flask import Flask, render_template, request, jsonify 
 import urllib3
+from urllib.parse import urljoin # Para construir a URL de upload de forma segura
 
 # Desabilita alertas de SSL
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -11,6 +12,7 @@ app = Flask(__name__)
 # =========================================================================
 # CONFIGURAÇÃO DE CONEXÃO (ROBUSTA)
 # =========================================================================
+# Usamos a URL externa para garantir que uploads de arquivos funcionem corretamente
 DIRECTUS_URL_EXTERNAL = os.getenv("DIRECTUS_URL", "https://directus.leanttro.com")
 DIRECTUS_URL_INTERNAL = "http://213.199.56.207:8055" 
 
@@ -18,6 +20,10 @@ DIRECTUS_URLS_TO_TRY = [
     DIRECTUS_URL_EXTERNAL,
     DIRECTUS_URL_INTERNAL
 ]
+
+# Variável global para armazenar a URL que funcionou (usada na API POST)
+# Inicialmente vazia, será definida em 'home'
+GLOBAL_SUCCESSFUL_URL = None
 # =========================================================================
 
 def clean_url(url):
@@ -30,7 +36,7 @@ def fetch_collection_data(url, collection_name, tenant_id, params=None):
     if params is None:
         params = {}
     
-    # Adiciona o filtro de tenant_id, garantindo que não sobrescreva outros filtros
+    # Adiciona o filtro de tenant_id
     params["filter[tenant_id][_eq]"] = tenant_id
 
     try:
@@ -43,17 +49,17 @@ def fetch_collection_data(url, collection_name, tenant_id, params=None):
         if response.status_code == 200:
             return response.json().get('data', [])
         else:
-            # Em caso de erro HTTP (ex: 403, 404), retorna lista vazia
-            print(f"Alerta: Falha ao buscar {collection_name}. Status: {response.status_code}")
+            print(f"Alerta: Falha ao buscar {collection_name}. Status: {response.status_code}. Response: {response.text[:50]}...")
             return []
     except Exception as e:
-        # Em caso de erro de conexão, retorna lista vazia
-        print(f"Erro ao buscar {collection_name}: {str(e)}")
+        print(f"Erro Crítico ao buscar {collection_name}: {str(e)}")
         return []
 
 # --- ROTA PRINCIPAL (Renderização de Páginas) ---
 @app.route('/')
 def home():
+    global GLOBAL_SUCCESSFUL_URL
+    
     host = request.headers.get('Host', '')
     if 'localhost' in host or '127.0.0.1' in host:
         subdomain = 'teste'
@@ -74,6 +80,7 @@ def home():
             
             if response is not None and response.status_code is not None:
                 successful_url = current_url
+                GLOBAL_SUCCESSFUL_URL = current_url # Define a URL globalmente para uso no POST
                 break
         except Exception as e:
             last_exception = e
@@ -113,13 +120,13 @@ def home():
     # Busca Produtos
     products = fetch_collection_data(successful_url, "products", tenant_id)
     
-    # Busca SECTIONS (CORRIGIDO: O campo de ordenação é 'order_index' ou 'Order Index' - usando o nome correto)
+    # Busca SECTIONS (Corrigido para usar 'order_index')
     sections = fetch_collection_data(
         successful_url, 
         "sections", 
         tenant_id, 
         params={
-            "sort": "order_index", # Usando o nome minúsculo do banco, que é mais seguro
+            "sort": "order_index", 
             "filter[page_slug][_eq]": "home", 
             "fields": "*.*" 
         }
@@ -153,11 +160,94 @@ def home():
 # --- ROTA DE API (Para o Formulário de Envio de Comprovante) ---
 @app.route('/api/confirm_vaquinha', methods=['POST'])
 def confirm_vaquinha():
-    # Implementação futura para salvar comprovantes
-    return jsonify({
-        "status": "pending_implementation", 
-        "message": "Endpoint de salvamento de comprovante ainda não implementado."
-    }), 200
+    
+    # Usamos a URL que funcionou no carregamento da página. Se não houver, voltamos para a externa.
+    directus_api_url = GLOBAL_SUCCESSFUL_URL or clean_url(os.getenv("DIRECTUS_URL", "https://directus.leanttro.com"))
+    
+    # 1. Obter Dados do Formulário
+    guest_name = request.form.get('name')
+    proof_file = request.files.get('proof')
+
+    if not all([guest_name, proof_file]):
+        return jsonify({"status": "error", "message": "Nome e comprovante são obrigatórios."}), 400
+
+    # 2. Buscar o Tenant_ID
+    host = request.headers.get('Host', '')
+    subdomain = host.split('.')[0]
+    tenant_id = None
+    
+    try:
+        tenant_resp = requests.get(
+            f"{directus_api_url}/items/tenants",
+            params={"filter[subdomain][_eq]": subdomain},
+            verify=False
+        )
+        tenant_data = tenant_resp.json().get('data', [{}])
+        if tenant_data:
+            tenant_id = tenant_data[0].get('id')
+    except Exception:
+        pass # Ignora, vai falhar mais adiante se o ID for None
+
+    if not tenant_id:
+        return jsonify({"status": "error", "message": "Tenant não encontrado no Directus."}), 404
+
+    # 3. Upload do Arquivo (Comprovante) para o Directus
+    file_id = None
+    try:
+        # Prepara o arquivo para envio multipart/form-data
+        files = {'file': (proof_file.filename, proof_file.stream, proof_file.mimetype)}
+        
+        upload_resp = requests.post(
+            f"{directus_api_url}/files", 
+            files=files, 
+            verify=False, # Ignora SSL
+            timeout=10
+        )
+        
+        if upload_resp.status_code == 200 or upload_resp.status_code == 204:
+            # O ID do arquivo é retornado e será usado no registro do convidado
+            file_id = upload_resp.json()['data']['id']
+        else:
+            return jsonify({"status": "error", "message": f"Falha ao enviar arquivo para o Directus. Status: {upload_resp.status_code}. Motivo: {upload_resp.text[:50]}..."}), 500
+            
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Erro de comunicação ao fazer upload do comprovante: {str(e)}"}), 500
+
+    # 4. Salvar o Registro na Tabela vaquinha_guests
+    try:
+        guest_data = {
+            "tenant_id": tenant_id,
+            "name": guest_name,
+            "payment_proof_url": file_id, 
+            "status": "PENDING"
+        }
+        
+        save_resp = requests.post(
+            f"{directus_api_url}/items/vaquinha_guests", 
+            json=guest_data, 
+            verify=False
+        )
+        
+        if save_resp.status_code == 200 or save_resp.status_code == 204:
+            # Redireciona para uma mensagem de sucesso
+            return """
+                <!DOCTYPE html>
+                <html lang="pt-br">
+                <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Sucesso!</title><script src="https://cdn.tailwindcss.com"></script></head>
+                <body class="bg-gray-100 flex items-center justify-center h-screen">
+                    <div class="bg-white p-10 rounded-xl shadow-2xl text-center border-t-4 border-green-500 max-w-lg">
+                        <h1 class="text-3xl font-bold text-green-600 mb-4">✅ Comprovante Enviado!</h1>
+                        <p class="text-gray-700 mb-6">O comprovante de **{guest_name}** foi enviado e está sob análise do organizador.</p>
+                        <a href="/" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-lg transition duration-300">Voltar para a Vaquinha</a>
+                    </div>
+                </body>
+                </html>
+            """.format(guest_name=guest_name)
+        else:
+            return jsonify({"status": "error", "message": f"Falha ao registrar convidado. Status: {save_resp.status_code}. Motivo: {save_resp.text[:50]}..."}), 500
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Erro de comunicação ao salvar o registro: {str(e)}"}), 500
 
 
 if __name__ == '__main__':
