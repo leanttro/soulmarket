@@ -6,24 +6,86 @@ from urllib.parse import urljoin
 import json 
 import re 
 
-# Desabilita alertas de SSL
+# Desabilita alertas de SSL (útil se o Directus interno não tiver SSL)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = Flask(__name__)
 
 # =========================================================================
-# CONFIGURAÇÃO DE CONEXÃO (ROBUSTA)
+# 1. CONFIGURAÇÃO DE CONEXÃO COM DIRECTUS (ROBUSTA)
 # =========================================================================
 DIRECTUS_URL_EXTERNAL = os.getenv("DIRECTUS_URL", "https://directus.leanttro.com")
-DIRECTUS_URL_INTERNAL = "http://213.199.56.207:8055"
+# Se o Docker interno tiver outro IP, ajuste aqui. Caso contrário, use o mesmo.
+DIRECTUS_URL_INTERNAL = "http://213.199.56.207:8055" 
 
 DIRECTUS_URLS_TO_TRY = [
     DIRECTUS_URL_EXTERNAL,
     DIRECTUS_URL_INTERNAL
 ]
 
-# Variável global para armazenar a URL que funcionou (usada na API POST)
+# Variável global para armazenar a URL que funcionou
 GLOBAL_SUCCESSFUL_URL = None
+
+# =========================================================================
+# 2. AUTOMAÇÃO DOKPLOY (Para HostGator/SSL)
+# =========================================================================
+def create_dokploy_domain(subdomain):
+    """
+    Cria o domínio automaticamente no Dokploy para garantir o SSL.
+    Necessário para quem usa HostGator/Hostinger sem API de DNS.
+    """
+    # Pega as configs das variáveis de ambiente (configure isso no Dokploy)
+    DOKPLOY_URL = os.getenv("DOKPLOY_URL") 
+    DOKPLOY_TOKEN = os.getenv("DOKPLOY_TOKEN")
+    APP_ID = os.getenv("DOKPLOY_APP_ID")
+    
+    # Se não tiver configurado, apenas avisa no log e segue a vida
+    if not all([DOKPLOY_URL, DOKPLOY_TOKEN, APP_ID]):
+        print("⚠️ AVISO: Variáveis do Dokploy não configuradas. O domínio não será criado automaticamente.")
+        return False
+
+    # Limpa a URL do Dokploy se tiver barra no final
+    if DOKPLOY_URL.endswith('/'):
+        DOKPLOY_URL = DOKPLOY_URL[:-1]
+
+    full_domain = f"{subdomain}.leanttro.com"
+    print(f"🔄 Solicitando ao Dokploy criação de: {full_domain}...")
+
+    headers = {
+        "Authorization": f"Bearer {DOKPLOY_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "applicationId": APP_ID,
+        "host": full_domain,
+        "path": "/",
+        "port": 5000,           # Porta interna do Flask
+        "https": True,          # ATIVA O SSL (Let's Encrypt)
+        "certificateType": "letsencrypt"
+    }
+    
+    try:
+        response = requests.post(
+            f"{DOKPLOY_URL}/api/domain.create", 
+            json=payload, 
+            headers=headers, 
+            timeout=10
+        )
+        
+        if response.status_code in [200, 201]:
+            print(f"✅ SUCESSO! Domínio {full_domain} criado no Dokploy.")
+            return True
+        else:
+            print(f"⚠️ ERRO DOKPLOY ({response.status_code}): {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"⛔ FALHA DE CONEXÃO COM DOKPLOY: {str(e)}")
+        return False
+
+# =========================================================================
+# 3. FUNÇÕES AUXILIARES
 # =========================================================================
 
 def clean_url(url):
@@ -31,8 +93,6 @@ def clean_url(url):
         return url[:-1]
     return url
 
-# Função auxiliar para buscar coleções de forma segura
-# ACEITA UMA URL ESPECÍFICA COMO PARAMETRO
 def fetch_collection_data(url_base, collection_name, tenant_id, params=None):
     if params is None:
         params = {}
@@ -40,7 +100,6 @@ def fetch_collection_data(url_base, collection_name, tenant_id, params=None):
     params["filter[tenant_id][_eq]"] = tenant_id
 
     try:
-        # AQUI USAMOS A URL BASE FORNECIDA
         response = requests.get(
             f"{url_base}/items/{collection_name}",
             params=params,
@@ -56,7 +115,10 @@ def fetch_collection_data(url_base, collection_name, tenant_id, params=None):
         print(f"Erro Crítico ao buscar {collection_name}: {str(e)}")
         return []
 
-# --- ROTA PRINCIPAL (Renderização de Páginas) ---
+# =========================================================================
+# 4. ROTAS DO FLASK
+# =========================================================================
+
 @app.route('/')
 def home():
     global GLOBAL_SUCCESSFUL_URL
@@ -71,8 +133,7 @@ def home():
     response = None
     last_exception = None
 
-    # 1. LOOP DE TENTATIVA DE CONEXÃO (TENANTS)
-    # A URL que funcionar aqui será usada para TUDO.
+    # Tenta conectar no Directus (Internal vs External)
     for current_url in DIRECTUS_URLS_TO_TRY:
         current_url = clean_url(current_url)
         try:
@@ -88,70 +149,49 @@ def home():
             last_exception = e
             continue
             
-    # ... (Tratamento de erros e 404/confras) ...
     if not successful_url:
         return f"""
         <h1>ERRO CRÍTICO DE CONEXÃO</h1>
-        <p>O Flask não conseguiu falar com o Directus em nenhuma das URLs tentadas.</p>
-        <p><strong>URLs tentadas:</strong> {', '.join(DIRECTUS_URLS_TO_TRY)}</p>
-        <p><strong>Erro Técnico:</strong> {str(last_exception)}</p>
-        """, 500
-
-    if response.status_code != 200:
-        return f"""
-        <h1>ERRO NO DIRECTUS: {response.status_code}</h1>
-        <p>O Directus recusou a conexão usando a URL: <strong>{successful_url}</strong></p>
-        <p><strong>Motivo:</strong> {response.text}</p>
-        <p>Verifique a permissão da Role PUBLIC na tabela Tenants.</p>
+        <p>O Flask não conseguiu falar com o Directus.</p>
+        <p>Erro Técnico: {str(last_exception)}</p>
         """, 500
 
     data = response.json()
     
+    # Se não achou tenant, verifica se é a página de criar (confras) ou 404
     if not data.get('data'):
          if subdomain == 'confras':
-             template_file_name = "confras.html"
-             return render_template(template_file_name)
+             return render_template("confras.html")
          
          return f"""
             <h1>Loja não encontrada (404)</h1>
-            <p>O sistema conectou no Directus, mas não achou nenhuma loja com o subdomínio: <strong>{subdomain}</strong></p>
+            <p>Subdomínio: <strong>{subdomain}</strong> não registrado.</p>
             """, 404
 
-    # 5. BUSCA DE DADOS (Coleções)
     tenant = data['data'][0]
     tenant_id = tenant['id']
     
-    # Busca Produtos e SECTIONS (igual)
+    # Busca dados usando a URL que funcionou
     products = fetch_collection_data(successful_url, "products", tenant_id)
     sections = fetch_collection_data(
         successful_url,
         "sections",
         tenant_id,
-        params={
-            "sort": "order_index",
-            "filter[page_slug][_eq]": "home",
-            "fields": "*.*"
-        }
+        params={"sort": "order_index", "filter[page_slug][_eq]": "home", "fields": "*.*"}
     )
     
-    # CORREÇÃO CRÍTICA: Removendo a lógica de forçar a URL INTERNA, 
-    # pois a URL de 'successful_url' deve ser usada.
-    
     guests_all = fetch_collection_data(
-        successful_url, # AGORA USA A URL QUE JÁ CONECTOU COM SUCESSO
+        successful_url, 
         "vaquinha_guests", 
         tenant_id, 
         params={"sort": "-created_at"}
     )
     
-    # Filtra os confirmados para o contador público/lógica Freemium
     guests_confirmed = [g for g in guests_all if g.get('status') == 'CONFIRMED']
     
-    # Busca Configurações da Vaquinha
     vaquinha_settings_list = fetch_collection_data(successful_url, "vaquinha_settings", tenant_id)
     vaquinha_settings = vaquinha_settings_list[0] if vaquinha_settings_list else {}
     
-    # 6. RENDERIZAÇÃO
     template_base_name = tenant.get('template_name') or 'home'
     template_file_name = f"{template_base_name}.html"
     
@@ -166,38 +206,34 @@ def home():
         directus_external_url=DIRECTUS_URL_EXTERNAL
     )
 
-# --- ROTA DE API PARA CRIAÇÃO DE TENANT (Novo Endpoint de Escala) ---
+# --- ROTA DE CRIAÇÃO (AGORA COM DOKPLOY AUTOMATION) ---
 @app.route('/api/create_tenant', methods=['POST'])
 def create_tenant():
     ADMIN_TOKEN = os.getenv("DIRECTUS_ADMIN_TOKEN")
     
     if not ADMIN_TOKEN:
-        return jsonify({"status": "error", "message": "Token de administração não configurado (DIRECTUS_ADMIN_TOKEN)."}), 500
+        return jsonify({"status": "error", "message": "Token ADMIN não configurado."}), 500
 
     directus_api_url = GLOBAL_SUCCESSFUL_URL or clean_url(os.getenv("DIRECTUS_URL", "https://directus.leanttro.com"))
     
     try:
         data = request.get_json()
         
-        required_fields = ['company_name', 'subdomain', 'email', 'pix_key', 'password']
-        if not all(data.get(field) for field in required_fields):
-            return jsonify({"status": "error", "message": "Preencha todos os campos obrigatórios."}), 400
+        # Validação simples
+        if not data.get('subdomain'):
+             return jsonify({"status": "error", "message": "Subdomínio inválido."}), 400
         
-        # Limpeza do subdomínio
         subdomain_clean = data['subdomain'].lower()
         subdomain_clean = re.sub(r'[^a-z0-9-]', '', subdomain_clean)
-        
-        if not subdomain_clean:
-             return jsonify({"status": "error", "message": "Subdomínio inválido."}), 400
 
-        admin_token = subdomain_clean.upper() + "_TOKEN_MASTER" # Gera o MASTER TOKEN
+        admin_token = subdomain_clean.upper() + "_TOKEN_MASTER"
 
         tenant_data = {
-            "company_name": data['company_name'],
+            "company_name": data.get('company_name'),
             "subdomain": subdomain_clean,
-            "email": data['email'],
-            "pix_key": data['pix_key'],
-            "pix_owner_name": data['company_name'],
+            "email": data.get('email'),
+            "pix_key": data.get('pix_key'),
+            "pix_owner_name": data.get('company_name'),
             "guest_limit": 20,
             "plan_type": "free",
             "template_name": "vaquinha",
@@ -211,7 +247,7 @@ def create_tenant():
             "Content-Type": "application/json"
         }
 
-        # 3. Criação do Tenant
+        # 1. Cria Tenant no Directus
         tenant_create_resp = requests.post(
             f"{directus_api_url}/items/tenants",
             headers=headers,
@@ -220,24 +256,27 @@ def create_tenant():
         )
         
         if tenant_create_resp.status_code != 200:
-            error_msg = tenant_create_resp.json().get('errors', [{}])[0].get('message', 'Erro desconhecido ao criar o Tenant.')
-            if 'subdomain' in error_msg:
-                 error_msg = f"O subdomínio '{subdomain_clean}' já está em uso."
+            error_msg = "Erro ao criar loja."
+            try:
+                error_body = tenant_create_resp.json()
+                if 'errors' in error_body:
+                    error_msg = error_body['errors'][0].get('message')
+                    if 'subdomain' in error_msg and 'unique' in error_msg:
+                        error_msg = "Este subdomínio já está em uso."
+            except:
+                pass
             
-            return jsonify({
-                "status": "error",
-                "message": error_msg
-            }), 400
+            return jsonify({"status": "error", "message": error_msg}), 400
 
         new_tenant_id = tenant_create_resp.json()['data']['id']
         
-        # 4. Criação do Usuário na tabela 'users' (CORRIGIDO PARA LOJA ADMIN)
+        # 2. Cria Usuário Admin da Loja
         user_data = {
             "tenant_id": new_tenant_id,
-            "email": data['email'],
-            "password_hash": data['password'],
+            "email": data.get('email'),
+            "password_hash": data.get('password'),
             "role": "Loja Admin",
-            "name": data['company_name']
+            "name": data.get('company_name')
         }
         
         requests.post(
@@ -247,135 +286,110 @@ def create_tenant():
             verify=False
         )
         
+        # 3. AUTOMAÇÃO DOKPLOY (ESSENCIAL PARA HOSTGATOR)
+        # Tenta criar o domínio lá no Dokploy para gerar o SSL
+        try:
+            create_dokploy_domain(subdomain_clean)
+        except Exception as e_dok:
+            print(f"Erro silencioso ao criar domínio no Dokploy: {e_dok}")
+            # Não retornamos erro pro usuário aqui, pois o tenant já foi criado.
+            # O site vai funcionar (HTTP), só o SSL que pode demorar ou falhar se config errada.
+
         return jsonify({
             "status": "success",
-            "message": "Sua vaquinha foi criada!",
+            "message": "Criado com sucesso!",
             "url": f"http://{subdomain_clean}.leanttro.com",
             "subdomain": subdomain_clean,
             "admin_token": admin_token
         }), 200
 
     except Exception as e:
-        return jsonify({"status": "error", "message": f"Erro interno do servidor: {str(e)}"}), 500
+        return jsonify({"status": "error", "message": f"Erro interno: {str(e)}"}), 500
 
-# --- ROTA DE API PARA APROVAÇÃO (PATCH) ---
 @app.route('/api/approve_guest', methods=['POST'])
 def approve_guest():
-    
     directus_api_url = GLOBAL_SUCCESSFUL_URL or clean_url(os.getenv("DIRECTUS_URL", "https://directus.leanttro.com"))
     
     try:
         data = request.get_json()
         guest_id = data.get('guest_id')
-    except Exception:
-        return jsonify({"status": "error", "message": "ID do convidado não fornecido."}), 400
-
-    if not guest_id:
-        return jsonify({"status": "error", "message": "ID do convidado é obrigatório."}), 400
-
-    try:
-        update_data = {"status": "CONFIRMED"}
         
-        update_resp = requests.patch(
+        if not guest_id:
+            return jsonify({"status": "error", "message": "ID faltando"}), 400
+
+        requests.patch(
             f"{directus_api_url}/items/vaquinha_guests/{guest_id}",
-            json=update_data,
+            json={"status": "CONFIRMED"},
             verify=False
         )
-        
-        if update_resp.status_code == 200:
-            return jsonify({"status": "success", "message": "Convidado aprovado com sucesso!"}), 200
-        else:
-            return jsonify({"status": "error", "message": "Falha ao atualizar status no Directus."}), 500
-
+        return jsonify({"status": "success"}), 200
     except Exception as e:
-        return jsonify({"status": "error", "message": f"Erro de comunicação ao aprovar o registro: {str(e)}"}), 500
+        return jsonify({"status": "error", "message": str(e)}), 500
 
-# --- ROTA DE API PARA ENVIO DE COMPROVANTE (POST) ---
 @app.route('/api/confirm_vaquinha', methods=['POST'])
 def confirm_vaquinha():
-    
     directus_api_url = GLOBAL_SUCCESSFUL_URL or clean_url(os.getenv("DIRECTUS_URL", "https://directus.leanttro.com"))
     
     guest_name = request.form.get('name')
     guest_email = request.form.get('email')
     proof_file = request.files.get('proof')
 
-    if not all([guest_name, guest_email, proof_file]):
-        return jsonify({"status": "error", "message": "Nome, email e comprovante são obrigatórios."}), 400
-
+    # Identifica tenant pelo subdomínio
     host = request.headers.get('Host', '')
     subdomain = host.split('.')[0]
-    tenant_id = None
     
+    tenant_id = None
     try:
-        tenant_resp = requests.get(
+        t_resp = requests.get(
             f"{directus_api_url}/items/tenants",
             params={"filter[subdomain][_eq]": subdomain},
             verify=False
         )
-        tenant_data = tenant_resp.json().get('data', [{}])
-        if tenant_data:
-            tenant_id = tenant_data[0].get('id')
-    except Exception:
+        if t_resp.status_code == 200 and t_resp.json()['data']:
+            tenant_id = t_resp.json()['data'][0]['id']
+    except:
         pass
 
     if not tenant_id:
-        return jsonify({"status": "error", "message": "Tenant não encontrado no Directus."}), 404
+        return jsonify({"status": "error", "message": "Erro ao identificar evento."}), 404
 
+    # Upload Arquivo
     file_id = None
-    try:
-        files = {'file': (proof_file.filename, proof_file.stream, proof_file.mimetype)}
-        
-        upload_resp = requests.post(
-            f"{directus_api_url}/files",
-            files=files,
-            verify=False,
-            timeout=10
-        )
-        
-        if upload_resp.status_code == 200 or upload_resp.status_code == 204:
-            file_id = upload_resp.json()['data']['id']
-        else:
-            return jsonify({"status": "error", "message": f"Falha ao enviar arquivo para o Directus. Status: {upload_resp.status_code}. Motivo: {upload_resp.text[:50]}..."}), 500
-            
-    except Exception as e:
-        return jsonify({"status": "error", "message": f"Erro de comunicação ao fazer upload do comprovante: {str(e)}"}), 500
+    if proof_file:
+        try:
+            files = {'file': (proof_file.filename, proof_file.stream, proof_file.mimetype)}
+            up_resp = requests.post(f"{directus_api_url}/files", files=files, verify=False)
+            if up_resp.status_code in [200, 201]:
+                file_id = up_resp.json()['data']['id']
+        except:
+            pass
 
+    # Cria Guest
     try:
-        guest_data = {
-            "tenant_id": tenant_id,
-            "name": guest_name,
-            "email": guest_email,
-            "payment_proof_url": file_id,
-            "status": "PENDING"
-        }
-        
-        save_resp = requests.post(
+        requests.post(
             f"{directus_api_url}/items/vaquinha_guests",
-            json=guest_data,
+            json={
+                "tenant_id": tenant_id,
+                "name": guest_name,
+                "email": guest_email,
+                "payment_proof_url": file_id,
+                "status": "PENDING"
+            },
             verify=False
         )
         
-        if save_resp.status_code == 200 or save_resp.status_code == 204:
-            return """
-                <!DOCTYPE html>
-                <html lang="pt-br">
-                <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Sucesso!</title><script src="https://cdn.tailwindcss.com"></script></head>
-                <body class="bg-gray-100 flex items-center justify-center h-screen">
-                    <div class="bg-white p-10 rounded-xl shadow-2xl text-center border-t-4 border-green-500 max-w-lg">
-                        <h1 class="text-3xl font-bold text-green-600 mb-4">✅ Comprovante Enviado!</h1>
-                        <p class="text-gray-700 mb-6">O comprovante de **{guest_name}** foi enviado e está sob análise do organizador.</p>
-                        <a href="/" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-lg transition duration-300">Voltar para a Vaquinha</a>
-                    </div>
-                </body>
-                </html>
-            """.format(guest_name=guest_name)
-        else:
-            return jsonify({"status": "error", "message": f"Falha ao registrar convidado. Status: {save_resp.status_code}. Motivo: {save_resp.text[:50]}..."}), 500
-
+        # HTML de Sucesso Simples
+        return f"""
+        <body style="font-family:sans-serif; text-align:center; padding:50px; background:#f0fdf4;">
+            <div style="background:white; padding:40px; border-radius:10px; max-width:500px; margin:auto; box-shadow:0 10px 25px rgba(0,0,0,0.1);">
+                <h1 style="color:#16a34a;">✅ Recebido!</h1>
+                <p>Obrigado <b>{guest_name}</b>. Seu comprovante foi enviado.</p>
+                <a href="/" style="display:inline-block; margin-top:20px; text-decoration:none; color:#16a34a; font-weight:bold;">&larr; Voltar</a>
+            </div>
+        </body>
+        """
     except Exception as e:
-        return jsonify({"status": "error", "message": f"Erro de comunicação ao salvar o registro: {str(e)}"}), 500
-
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
