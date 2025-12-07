@@ -64,7 +64,16 @@ def home():
         )
         products = prod_resp.json().get('data', [])
         
-        return render_template('home.html', tenant=tenant, products=products)
+        # --- ALTERAÇÃO AQUI: Lógica para selecionar o template ---
+        
+        # 1. Tenta obter template_name, usando 'home' como padrão se for vazio ou não existir
+        template_base_name = tenant.get('template_name') or 'home'
+        # 2. Constrói o nome completo do arquivo com a extensão .html
+        template_file_name = f"{template_base_name}.html"
+        
+        # 3. Renderiza o template escolhido
+        return render_template(template_file_name, tenant=tenant, products=products)
+        # --- FIM DA ALTERAÇÃO ---
             
     except Exception as e:
         # MOSTRA O ERRO REAL NA TELA
