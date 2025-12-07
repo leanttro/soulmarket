@@ -2,7 +2,7 @@ import os
 import requests
 from flask import Flask, render_template, request, jsonify 
 import urllib3
-from urllib.parse import urljoin # Para construir a URL de upload de forma segura
+from urllib.parse import urljoin 
 
 # Desabilita alertas de SSL
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -12,7 +12,6 @@ app = Flask(__name__)
 # =========================================================================
 # CONFIGURAÇÃO DE CONEXÃO (ROBUSTA)
 # =========================================================================
-# Usamos a URL externa para garantir que uploads de arquivos funcionem corretamente
 DIRECTUS_URL_EXTERNAL = os.getenv("DIRECTUS_URL", "https://directus.leanttro.com")
 DIRECTUS_URL_INTERNAL = "http://213.199.56.207:8055" 
 
@@ -22,7 +21,6 @@ DIRECTUS_URLS_TO_TRY = [
 ]
 
 # Variável global para armazenar a URL que funcionou (usada na API POST)
-# Inicialmente vazia, será definida em 'home'
 GLOBAL_SUCCESSFUL_URL = None
 # =========================================================================
 
@@ -36,7 +34,6 @@ def fetch_collection_data(url, collection_name, tenant_id, params=None):
     if params is None:
         params = {}
     
-    # Adiciona o filtro de tenant_id
     params["filter[tenant_id][_eq]"] = tenant_id
 
     try:
@@ -49,7 +46,7 @@ def fetch_collection_data(url, collection_name, tenant_id, params=None):
         if response.status_code == 200:
             return response.json().get('data', [])
         else:
-            print(f"Alerta: Falha ao buscar {collection_name}. Status: {response.status_code}. Response: {response.text[:50]}...")
+            print(f"Alerta: Falha ao buscar {collection_name}. Status: {response.status_code}.")
             return []
     except Exception as e:
         print(f"Erro Crítico ao buscar {collection_name}: {str(e)}")
@@ -80,7 +77,7 @@ def home():
             
             if response is not None and response.status_code is not None:
                 successful_url = current_url
-                GLOBAL_SUCCESSFUL_URL = current_url # Define a URL globalmente para uso no POST
+                GLOBAL_SUCCESSFUL_URL = current_url 
                 break
         except Exception as e:
             last_exception = e
@@ -117,10 +114,8 @@ def home():
     tenant = data['data'][0]
     tenant_id = tenant['id']
     
-    # Busca Produtos
+    # Busca Produtos e SECTIONS (igual)
     products = fetch_collection_data(successful_url, "products", tenant_id)
-    
-    # Busca SECTIONS (Corrigido para usar 'order_index')
     sections = fetch_collection_data(
         successful_url, 
         "sections", 
@@ -132,15 +127,18 @@ def home():
         }
     )
     
-    # Busca Convidados Confirmados (para a lógica Freemium)
-    guests_confirmed = fetch_collection_data(
+    # Busca TODOS os Convidados (para o Painel do Organizador no template)
+    guests_all = fetch_collection_data(
         successful_url, 
         "vaquinha_guests", 
         tenant_id, 
-        params={"filter[status][_eq]": "CONFIRMED"}
+        params={"sort": "-created_at"} # Ordena do mais recente
     )
     
-    # Busca Configurações da Vaquinha (pega o primeiro item, se existir)
+    # Filtra os confirmados para o contador público/lógica Freemium
+    guests_confirmed = [g for g in guests_all if g.get('status') == 'CONFIRMED']
+    
+    # Busca Configurações da Vaquinha
     vaquinha_settings_list = fetch_collection_data(successful_url, "vaquinha_settings", tenant_id)
     vaquinha_settings = vaquinha_settings_list[0] if vaquinha_settings_list else {}
     
@@ -154,6 +152,7 @@ def home():
         products=products, 
         sections=sections,
         guests_confirmed=guests_confirmed,
+        guests_all=guests_all, # NOVO: Lista completa
         vaquinha_settings=vaquinha_settings
     )
 
@@ -161,7 +160,6 @@ def home():
 @app.route('/api/confirm_vaquinha', methods=['POST'])
 def confirm_vaquinha():
     
-    # Usamos a URL que funcionou no carregamento da página. Se não houver, voltamos para a externa.
     directus_api_url = GLOBAL_SUCCESSFUL_URL or clean_url(os.getenv("DIRECTUS_URL", "https://directus.leanttro.com"))
     
     # 1. Obter Dados do Formulário
@@ -186,7 +184,7 @@ def confirm_vaquinha():
         if tenant_data:
             tenant_id = tenant_data[0].get('id')
     except Exception:
-        pass # Ignora, vai falhar mais adiante se o ID for None
+        pass 
 
     if not tenant_id:
         return jsonify({"status": "error", "message": "Tenant não encontrado no Directus."}), 404
@@ -194,18 +192,16 @@ def confirm_vaquinha():
     # 3. Upload do Arquivo (Comprovante) para o Directus
     file_id = None
     try:
-        # Prepara o arquivo para envio multipart/form-data
         files = {'file': (proof_file.filename, proof_file.stream, proof_file.mimetype)}
         
         upload_resp = requests.post(
             f"{directus_api_url}/files", 
             files=files, 
-            verify=False, # Ignora SSL
+            verify=False, 
             timeout=10
         )
         
         if upload_resp.status_code == 200 or upload_resp.status_code == 204:
-            # O ID do arquivo é retornado e será usado no registro do convidado
             file_id = upload_resp.json()['data']['id']
         else:
             return jsonify({"status": "error", "message": f"Falha ao enviar arquivo para o Directus. Status: {upload_resp.status_code}. Motivo: {upload_resp.text[:50]}..."}), 500
@@ -229,7 +225,7 @@ def confirm_vaquinha():
         )
         
         if save_resp.status_code == 200 or save_resp.status_code == 204:
-            # Redireciona para uma mensagem de sucesso
+            # Mensagem de sucesso (igual à última versão)
             return """
                 <!DOCTYPE html>
                 <html lang="pt-br">
