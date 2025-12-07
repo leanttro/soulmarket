@@ -1,6 +1,6 @@
 import os
 import requests
-from flask import Flask, render_template, request, jsonify # Adicionado jsonify
+from flask import Flask, render_template, request, jsonify 
 import urllib3
 
 # Desabilita alertas de SSL
@@ -25,6 +25,32 @@ def clean_url(url):
         return url[:-1]
     return url
 
+# Função auxiliar para buscar coleções de forma segura
+def fetch_collection_data(url, collection_name, tenant_id, params=None):
+    if params is None:
+        params = {}
+    
+    # Adiciona o filtro de tenant_id, garantindo que não sobrescreva outros filtros
+    params["filter[tenant_id][_eq]"] = tenant_id
+
+    try:
+        response = requests.get(
+            f"{url}/items/{collection_name}",
+            params=params,
+            verify=False,
+            timeout=5
+        )
+        if response.status_code == 200:
+            return response.json().get('data', [])
+        else:
+            # Em caso de erro HTTP (ex: 403, 404), retorna lista vazia
+            print(f"Alerta: Falha ao buscar {collection_name}. Status: {response.status_code}")
+            return []
+    except Exception as e:
+        # Em caso de erro de conexão, retorna lista vazia
+        print(f"Erro ao buscar {collection_name}: {str(e)}")
+        return []
+
 # --- ROTA PRINCIPAL (Renderização de Páginas) ---
 @app.route('/')
 def home():
@@ -38,19 +64,17 @@ def home():
     response = None
     last_exception = None
 
-    # 1. LOOP DE TENTATIVA DE CONEXÃO
+    # 1. LOOP DE TENTATIVA DE CONEXÃO (TENANTS)
     for current_url in DIRECTUS_URLS_TO_TRY:
         current_url = clean_url(current_url)
         try:
             url_tenants = f"{current_url}/items/tenants"
             params = {"filter[subdomain][_eq]": subdomain}
-            
             response = requests.get(url_tenants, params=params, verify=False, timeout=5)
             
             if response is not None and response.status_code is not None:
                 successful_url = current_url
                 break
-
         except Exception as e:
             last_exception = e
             continue 
@@ -87,44 +111,31 @@ def home():
     tenant_id = tenant['id']
     
     # Busca Produtos
-    prod_resp = requests.get(
-        f"{successful_url}/items/products",
-        params={"filter[tenant_id][_eq]": tenant_id},
-        verify=False
-    )
-    products = prod_resp.json().get('data', [])
+    products = fetch_collection_data(successful_url, "products", tenant_id)
     
-    # Busca SECTIONS (Com fields=*.* para robustez)
-    sections_resp = requests.get(
-        f"{successful_url}/items/sections", 
+    # Busca SECTIONS (CORRIGIDO: O campo de ordenação é 'order_index' ou 'Order Index' - usando o nome correto)
+    sections = fetch_collection_data(
+        successful_url, 
+        "sections", 
+        tenant_id, 
         params={
-            "filter[tenant_id][_eq]": tenant_id, 
-            "sort": "Order_Index", 
+            "sort": "order_index", # Usando o nome minúsculo do banco, que é mais seguro
             "filter[page_slug][_eq]": "home", 
             "fields": "*.*" 
-        }, 
-        verify=False
+        }
     )
-    sections = sections_resp.json().get('data', []) 
     
     # Busca Convidados Confirmados (para a lógica Freemium)
-    guests_resp = requests.get(
-        f"{successful_url}/items/vaquinha_guests", 
-        params={
-            "filter[tenant_id][_eq]": tenant_id,
-            "filter[status][_eq]": "CONFIRMED" # Conta apenas confirmados
-        }, 
-        verify=False
+    guests_confirmed = fetch_collection_data(
+        successful_url, 
+        "vaquinha_guests", 
+        tenant_id, 
+        params={"filter[status][_eq]": "CONFIRMED"}
     )
-    guests_confirmed = guests_resp.json().get('data', []) 
     
-    # Busca Configurações da Vaquinha
-    settings_resp = requests.get(
-        f"{successful_url}/items/vaquinha_settings", 
-        params={"filter[tenant_id][_eq]": tenant_id}, 
-        verify=False
-    )
-    vaquinha_settings = settings_resp.json().get('data', [{}])[0]
+    # Busca Configurações da Vaquinha (pega o primeiro item, se existir)
+    vaquinha_settings_list = fetch_collection_data(successful_url, "vaquinha_settings", tenant_id)
+    vaquinha_settings = vaquinha_settings_list[0] if vaquinha_settings_list else {}
     
     # 6. RENDERIZAÇÃO
     template_base_name = tenant.get('template_name') or 'home'
