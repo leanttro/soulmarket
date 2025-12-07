@@ -3,21 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ tenant.company_name or 'Site Institucional' }} - Alto Contraste</title>
-    <!-- Inclua o script CDN do Tailwind CSS -->
+    <title>{{ tenant.company_name | default('Site Institucional') }} - Alto Contraste</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* ================================================
-        NOVAS CORES DINÂMICAS DO TEMA: ÍNDIGO E ÂMBAR
+        NOVAS CORES DINÂMICAS DO TEMA
         ================================================
-        Define variáveis CSS para uso nas classes Tailwind e garante fallbacks.
+        Define variáveis CSS para uso nas classes Tailwind.
         */
         :root {
-            /* Cor Primária: Forte, Profissional (Indigo) */
-            --primary-color: {{ tenant.primary_color or '#4F46E5' }}; 
-            /* Cor Secundária: Destaque, Alerta (Amber) */
-            --secondary-color: {{ tenant.secondary_color or '#F59E0B' }}; 
-            /* Cor de Sucesso (WhatsApp) */
+            /* Cor Primária e Secundária do Directus */
+            --primary-color: {{ tenant.primary_color | default('#4F46E5') }}; 
+            --secondary-color: {{ tenant.secondary_color | default('#F59E0B') }}; 
             --whatsapp-color: #25D366; 
         }
 
@@ -28,29 +25,55 @@
         .bg-whatsapp { background-color: var(--whatsapp-color); }
         .text-secondary { color: var(--secondary-color); }
         
-        /* Ajustes de hover/focus */
+        /* Ajustes de hover/focus e Dark Mode para cores dinâmicas */
         .hover\:bg-primary-dark:hover { 
             background-color: color-mix(in srgb, var(--primary-color) 85%, black); 
         }
-        .focus\:ring-primary:focus { 
-            --tw-ring-color: color-mix(in srgb, var(--primary-color) 70%, white); 
+        
+        /* CORREÇÃO CRÍTICA: Estilo para botões criados dentro do campo 'Content' do Directus */
+        /* Isso garante que <a> tags com classes genéricas se pareçam com botões Tailwind premium */
+        .btn-primary, .btn-dark, .btn-lg, .btn-sm {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem 3rem; /* Equivalente a px-12 py-3 */
+            font-size: 1.125rem; /* text-xl */
+            font-weight: 700; /* font-bold */
+            border-radius: 9999px; /* rounded-full */
+            transition: all 0.3s;
+            text-decoration: none;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary { 
+            background-color: var(--primary-color); 
+            color: white; 
+        }
+        .btn-dark {
+            background-color: #1F2937; /* Dark Gray */
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: color-mix(in srgb, var(--primary-color) 85%, black);
+            transform: scale(1.05);
         }
 
-        /* Estilo para fontes (Usando 'Inter' para modernidade) */
-        body {
-            font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
-            background-color: #0A0A0A; /* Fundo padrão Dark Mode para FOUC */
-        }
     </style>
 
-    <!-- Script de Inicialização (Corrigido para forçar Dark no início e alternar) -->
     <script>
+        // Função para alternar tema
+        function toggleTheme() {
+            const htmlEl = document.documentElement;
+            const isDark = htmlEl.classList.toggle('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        }
+
+        // Lógica de inicialização (Roda antes da renderização)
         (function() {
             const htmlEl = document.documentElement;
             const storedTheme = localStorage.getItem('theme');
             
-            // Lógica final: Começa em 'dark' se não for explicitamente 'light'.
-            const isDark = (storedTheme === null || storedTheme === 'dark');
+            // Se a preferência não existe, use 'dark' como padrão (estilo Tesla)
+            const isDark = (storedTheme === 'dark' || storedTheme === null);
             
             if (isDark) {
                 htmlEl.classList.add('dark');
@@ -62,38 +85,30 @@
 </head>
 <body class="bg-white dark:bg-black antialiased transition-colors duration-500">
 
-    <!-- 🌟 HEADER: Fixo (Sticky), Alto Contraste e com CTAs Duplos e Theme Switcher -->
     <header class="sticky top-0 z-50 bg-white/95 dark:bg-black/95 backdrop-blur-md shadow-lg dark:shadow-3xl transition duration-500 border-b dark:border-gray-800">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
             
-            <!-- Logo/Nome da Empresa -->
             <a href="/" class="flex items-center space-x-3 text-2xl font-black tracking-widest text-gray-900 dark:text-white transition duration-500">
-                {% if tenant.logo_url %}
-                    <img src="{{ tenant.logo_url }}" alt="{{ tenant.company_name }}" class="h-8 w-auto">
+                {% if tenant.logo_url | default('') %}
+                    <img src="{{ tenant.logo_url }}" alt="{{ tenant.company_name | default('Logo') }}" class="h-8 w-auto">
                 {% else %}
-                    <span class="text-primary text-3xl mr-1 font-extrabold">LE</span>{{ tenant.company_name | upper or 'ANTTRO' }}
+                    <span class="text-primary text-3xl mr-1 font-extrabold">LE</span>{{ tenant.company_name | upper | default('ANTTRO') }}
                 {% endif %}
             </a>
 
-            <!-- CTAs Duplos e Theme Switcher -->
             <div class="flex items-center space-x-4">
                 
-                <!-- Botão de Alternância de Tema -->
                 <button id="theme-toggle" onclick="toggleTheme()" class="p-2 rounded-full text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-secondary transition duration-300 focus:outline-none focus:ring-2 focus:ring-primary/50">
-                    <!-- Ícone do Sol (Visível APENAS no Dark Mode) -->
                     <svg class="w-6 h-6 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-                    <!-- Ícone da Lua (Visível APENAS no Light Mode) -->
                     <svg class="w-6 h-6 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 11.001 11.001 0 0014 10a11.001 11.001 0 016.354 5.354z"></path></svg>
                 </button>
 
-                <!-- CTA 1: WhatsApp -->
                 <a href="https://wa.me/{{ tenant.whatsapp | default('+5511999999999') }}" target="_blank"
                    class="flex items-center px-4 py-2 text-sm font-semibold tracking-wider text-white transition duration-300 rounded-lg shadow-md
                           bg-whatsapp hover:bg-green-600 focus:outline-none focus:ring-4 focus:ring-green-400/50 transform hover:scale-[1.01]">
                     WhatsApp
                 </a>
                 
-                <!-- CTA 2: E-mail/Orçamento -->
                 <a href="mailto:{{ tenant.email | default('contato@empresa.com') }}"
                    class="hidden md:flex items-center px-4 py-2 text-sm font-semibold tracking-wider transition duration-300 rounded-lg shadow-md
                           bg-secondary text-gray-900 hover:bg-secondary/80 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600 transform hover:scale-[1.01] focus:outline-none focus:ring-4 focus:ring-secondary/50">
@@ -105,7 +120,6 @@
 
     <main>
         
-        <!-- 🥇 SEÇÃO 1: HERO - Impacto Institucional (Cinemático) -->
         <section class="bg-white dark:bg-black py-32 sm:py-40 lg:py-56 text-center transition duration-500">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 
@@ -116,29 +130,25 @@
                 </p>
 
                 <h1 class="text-6xl sm:text-7xl lg:text-9xl font-extrabold tracking-tighter leading-tight text-gray-900 dark:text-white mb-6 transition duration-500">
-                    {{ hero_section.title | default('Onde a Estratégia Encontra a Execução Impecável') }}
+                    {{ hero_section.title | default('Onde a Estratégia Encontra a Execução Impecável') | safe }}
                 </h1>
                 
                 <p class="text-xl sm:text-2xl text-gray-600 dark:text-gray-400 mb-12 max-w-5xl mx-auto transition duration-500">
                     {{ hero_section.content | safe | default('Deixamos a concorrência irrelevante. Seja você um advogado, coach ou consultor, nós construímos sua autoridade digital inquestionável.') }}
                 </p>
 
-                <!-- CTA Principal no Hero -->
                 <a href="https://wa.me/{{ tenant.whatsapp | default('+5511999999999') }}" target="_blank"
-                   class="inline-flex items-center justify-center px-16 py-4 text-xl font-bold tracking-wider text-white transition duration-500 rounded-full shadow-2xl 
-                          bg-primary hover:bg-primary-dark focus:outline-none focus:ring-8 focus:ring-primary/50 transform hover:scale-105">
+                   class="btn-primary">
                     AGENDE UMA ANÁLISE PREMIUM
                 </a>
             </div>
         </section>
 
-        <!-- 🧱 SEÇÕES DINÂMICAS (MAIS LINHA: 7 TIPOS DE BLOCOS) -->
-        
         {% set bg_classes = [
-            'bg-light-stripe dark:bg-gray-900',       /* Listra 1: Light Gray / Dark Gray */
-            'bg-white dark:bg-black',                 /* Padrão: Branco / Preto Total */
-            'bg-primary/5 dark:bg-gray-900/50',       /* Listra 2: Sutil / Semi-Dark */
-            'bg-light-stripe dark:bg-gray-800',       /* Listra 3: Outro tom de cinza */
+            'bg-gray-50 dark:bg-gray-900',       
+            'bg-white dark:bg-black',                 
+            'bg-primary/5 dark:bg-gray-950/50',       
+            'bg-gray-100 dark:bg-gray-800',       
         ] %}
         
         {% for section in sections %}
@@ -146,7 +156,6 @@
             {% set index = loop.index0 %}
             {% set current_bg = bg_classes[index % bg_classes | length] %}
 
-            <!-- Ignora a seção Hero que já foi renderizada -->
             {% if section.section_type == 'hero' %}
                 {% continue %}
             {% endif %}
@@ -157,115 +166,48 @@
                     {% set section_type = section.section_type | default('default') %}
                     {% set text_color = 'text-gray-900 dark:text-white' %}
                     {% set secondary_text_color = 'text-gray-600 dark:text-gray-400' %}
-
+                    
                     {% if section_type == 'about_split' %}
-                        <!-- 2. BLOCO: Sobre/Proposta Única (Texto Esquerda / Mídia Direita) -->
                         <div class="lg:grid lg:grid-cols-2 lg:gap-24 items-center">
                             <div class="order-1">
                                 <span class="text-primary font-semibold text-lg mb-2 block uppercase tracking-widest">Nossa Metodologia</span>
                                 <h2 class="text-4xl lg:text-5xl font-extrabold tracking-tight mb-8 {{ text_color }}">
-                                    {{ section.title | default('A Arquitetura da Sua Próxima Vitória') }}
+                                    {{ section.title | default('A Arquitetura da Sua Próxima Vitória') | safe }}
                                 </h2>
                                 <div class="text-xl {{ secondary_text_color }} leading-relaxed space-y-6">
                                     {{ section.content | safe }}
                                 </div>
                             </div>
-                            <div class="mt-12 lg:mt-0 order-2">
-                                <!-- Placeholder para Imagem/Mockup de Alta Resolução -->
-                                <div class="w-full h-96 bg-gray-200 dark:bg-gray-700 rounded-3xl shadow-2xl overflow-hidden flex items-center justify-center border-4 border-primary/20 transition duration-500">
-                                    <span class="text-2xl text-gray-700 dark:text-gray-300 font-semibold">Mídia / Diagrama Exclusivo</span>
-                                </div>
                             </div>
-                        </div>
 
                     {% elif section_type == 'features_grid' %}
-                        <!-- 3. BLOCO: Vantagens (Grid 4 Colunas com Ícones) -->
                         <div class="text-center mb-20">
                             <span class="text-secondary font-semibold text-lg mb-2 block uppercase tracking-widest">VANTAGENS</span>
                             <h2 class="text-4xl lg:text-5xl font-extrabold tracking-tight {{ text_color }}">
-                                {{ section.title | default('Por que Nos Escolher é o Próximo Nível?') }}
+                                {{ section.title | default('Por que Nos Escolher é o Próximo Nível?') | safe }}
                             </h2>
                         </div>
                         
                         <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-10">
                             {{ section.content | safe }}
-                            <!-- Exemplo de estrutura esperada para {{ section.content | safe }}:
-                            <div class="p-6 bg-white dark:bg-gray-950 rounded-xl shadow-lg border-t-4 border-secondary transform hover:scale-[1.02] transition duration-300">
-                                <span class="text-secondary text-4xl mb-4 inline-block">🚀</span>
-                                <h3 class="text-lg font-bold mb-2 {{ text_color }}">Velocidade de Implementação</h3>
-                                <p class="text-sm {{ secondary_text_color }}">... (Descrição)</p>
-                            </div>
-                            -->
                         </div>
 
                     {% elif section_type == 'testimonial_focus' %}
-                        <!-- 4. BLOCO: Prova Social (Depoimento de Alto Impacto, Centralizado) -->
                         <div class="max-w-5xl mx-auto p-16 lg:p-24 rounded-3xl bg-primary/10 dark:bg-white/5 shadow-2xl border-2 border-primary/50 text-center transition duration-500">
-                            <span class="text-primary text-9xl font-serif leading-none block mb-12 opacity-80">“</span>
                             <blockquote class="text-3xl lg:text-5xl font-extrabold italic leading-snug text-gray-800 dark:text-gray-100 mb-10 transition duration-500">
-                                {{ section.content | safe | default('O único investimento que me trouxe mais autoridade do que 10 anos de experiência de mercado.') }}
-                            </blockquote>
-                            <p class="text-xl font-bold text-gray-900 dark:text-white">
-                                {{ section.author | default('Cliente de Alto Nível') }}
-                            </p>
-                            <p class="text-lg text-primary font-semibold">
-                                {{ section.role | default('CEO, Global Consulting') }}
-                            </p>
-                        </div>
-
-                    {% elif section_type == 'stats_metrics' %}
-                        <!-- 5. BLOCO: Estatísticas e Métricas de Sucesso -->
-                        <div class="text-center mb-20">
-                            <span class="text-primary font-semibold text-lg mb-2 block uppercase tracking-widest">Resultados</span>
-                            <h2 class="text-4xl lg:text-5xl font-extrabold tracking-tight {{ text_color }}">
-                                {{ section.title | default('Números que Comprovam a Nossa Eficiência') }}
-                            </h2>
-                        </div>
-                        
-                        <div class="grid md:grid-cols-4 gap-8">
-                            {{ section.content | safe }}
-                            <!-- Exemplo de estrutura esperada para {{ section.content | safe }}:
-                            <div class="p-6 text-center">
-                                <p class="text-6xl font-extrabold text-secondary tracking-tighter">98%</p>
-                                <p class="text-lg font-medium {{ secondary_text_color }}">De Satisfação</p>
-                            </div>
-                            -->
-                        </div>
-
-                    {% elif section_type == 'faq_accordion' %}
-                        <!-- 6. BLOCO: FAQ (Perguntas Frequentes) - Exemplo de Estrutura -->
-                        <div class="max-w-4xl mx-auto">
-                             <div class="text-center mb-16">
-                                <span class="text-primary font-semibold text-lg mb-2 block uppercase tracking-widest">Dúvidas</span>
-                                <h2 class="text-4xl lg:text-5xl font-extrabold tracking-tight {{ text_color }}">
-                                    {{ section.title | default('Perguntas Chave Respondidas') }}
-                                </h2>
-                            </div>
-                            <div class="space-y-4">
                                 {{ section.content | safe }}
-                                <!-- Exemplo de estrutura esperada para {{ section.content | safe }}:
-                                <details class="group bg-white dark:bg-gray-800 p-4 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 transition duration-300 open:bg-primary/10">
-                                    <summary class="flex justify-between items-center cursor-pointer font-bold text-lg {{ text_color }}">
-                                        Pergunta Frequente 1
-                                        <span class="text-primary transform transition duration-300 group-open:rotate-180">▼</span>
-                                    </summary>
-                                    <p class="mt-3 {{ secondary_text_color }}">{{ section.answer_1 | default('Resposta detalhada aqui...') }}</p>
-                                </details>
-                                -->
-                            </div>
+                            </blockquote>
                         </div>
 
                     {% elif section_type == 'final_cta' %}
-                        <!-- 7. BLOCO: CTA Final Imediato (High-Impact Strip) -->
                         <div class="text-center bg-primary rounded-3xl p-20 lg:p-32 shadow-2xl">
                             <h2 class="text-4xl sm:text-7xl font-extrabold tracking-tight mb-6 text-white">
-                                {{ section.title | default('Não Deixe Sua Autoridade Para Amanhã.') }}
+                                {{ section.title | default('Não Deixe Sua Autoridade Para Amanhã.') | safe }}
                             </h2>
                             <div class="text-xl text-white/90 mb-12 max-w-4xl mx-auto">
-                                {{ section.content | safe | default('O próximo passo é simples: Clique abaixo e inicie a conversa estratégica. O tempo está correndo.') }}
+                                {{ section.content | safe }}
                             </div>
                             
-                            <!-- Botão CTA Único (Invertido para destaque) -->
                             <a href="https://wa.me/{{ tenant.whatsapp | default('+5511999999999') }}" target="_blank"
                                class="inline-flex items-center justify-center px-16 py-5 text-xl font-bold tracking-wider text-primary transition duration-500 rounded-full 
                                       bg-white hover:bg-gray-100 transform hover:scale-105 shadow-2xl focus:outline-none focus:ring-8 focus:ring-white/50">
@@ -280,12 +222,11 @@
 
     </main>
 
-    <!-- 🦶 FOOTER: Clean e Focado em Informação Legal -->
     <footer class="bg-gray-900 dark:bg-black py-12 lg:py-16 transition duration-500 border-t dark:border-gray-800">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             
             <p class="text-sm text-gray-400 mb-6">
-                © {{ 'now' | date('%Y') }} {{ tenant.company_name or 'Leanttro' }}. Todos os direitos reservados.
+                &copy; {{ 'now' | date('%Y') }} {{ tenant.company_name | default('Leanttro') }}. Todos os direitos reservados.
             </p>
 
             <div class="flex justify-center space-x-8 text-sm">
@@ -296,18 +237,5 @@
             
         </div>
     </footer>
-
-    <!-- JavaScript para Alternar Tema (SIMPLIFICADO E ROBUSTO) -->
-    <script>
-        function toggleTheme() {
-            const htmlEl = document.documentElement;
-            
-            // Alterna a classe 'dark' no elemento <html> 
-            const isDark = htmlEl.classList.toggle('dark');
-            
-            // Salva a preferência no Local Storage
-            localStorage.setItem('theme', isDark ? 'dark' : 'light');
-        }
-    </script>
-</body>
+    </body>
 </html>
