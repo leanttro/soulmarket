@@ -6,16 +6,59 @@
     <title>Confraternização de {{ tenant.company_name }} | Vaquinha</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Define cores dinâmicas para botões e fundos */
+        /* Define cores dinâmicas */
         :root {
-            --primary: {{ tenant.primary_color | default('#22C55E') }}; /* Verde para PIX/Sucesso */
+            --primary: {{ tenant.primary_color | default('#22C55E') }};
             --secondary: {{ tenant.secondary_color | default('#F97316') }}; 
         }
         .bg-primary { background-color: var(--primary); }
         .text-primary { color: var(--primary); }
         .border-primary { border-color: var(--primary); }
         .btn-primary { background-color: var(--primary); color: white; }
+        .btn-approve { background-color: #3B82F6; color: white; }
+        .btn-approve:hover { background-color: #2563EB; }
     </style>
+    <script>
+        // Script para lidar com a aprovação AJAX
+        async function approveGuest(guestId, button) {
+            if (!confirm("Tem certeza que deseja APROVAR este comprovante?")) {
+                return;
+            }
+
+            button.disabled = true;
+            button.innerText = 'Aprovando...';
+
+            try {
+                const response = await fetch('/api/approve_guest', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ guest_id: guestId })
+                });
+
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    alert('Convidado aprovado! Recarregue a página para atualizar os contadores.');
+                    // Esconde a linha para simular a aprovação e pedir refresh
+                    const row = button.closest('tr');
+                    row.style.backgroundColor = '#d1fae5'; // Fundo verde claro
+                    row.querySelector('.status-cell').innerHTML = '<span class="inline-block px-2 py-1 text-xs font-semibold rounded bg-green-100 text-green-800">CONFIRMED (Recarregar)</span>';
+                    button.remove(); // Remove o botão de aprovar
+                } else {
+                    alert('Erro ao aprovar: ' + result.message);
+                    button.disabled = false;
+                    button.innerText = 'Aprovar';
+                }
+
+            } catch (error) {
+                alert('Erro de rede: Não foi possível conectar ao servidor.');
+                button.disabled = false;
+                button.innerText = 'Aprovar';
+            }
+        }
+    </script>
 </head>
 <body class="bg-gray-50 font-sans">
 
@@ -23,11 +66,9 @@
     {% set guest_limit = tenant.guest_limit | default(20) %}
     {% set is_limit_reached = confirmed_count >= guest_limit %}
     
-    {# ESCALABILIDADE: TOKEN AGORA VEM DO CAMPO 'admin_token' NO DIRECTUS #}
     {% set token_secreto = tenant.admin_token | default('master') %}
     {% set is_organizer_view = request.args.get('admin') == token_secreto %}
     
-    {# URL EXTERNA PARA LINKS DE DOWNLOAD DE ASSETS #}
     {% set asset_base_url = directus_external_url | default('https://directus.leanttro.com') %}
 
 
@@ -47,6 +88,26 @@
             <p class="text-gray-600 mb-10">
                 O organizador {{ tenant.pix_owner_name | default('sem nome definido') }} está gerenciando os pagamentos. Para confirmar sua presença, faça o PIX e envie o comprovante abaixo.
             </p>
+
+            {# --- LISTA DE NOMES CONFIRMADOS (NOVA SEÇÃO) --- #}
+            <div class="mb-10 p-6 border rounded-lg bg-green-50">
+                <h3 class="text-xl font-bold text-green-700 mb-3">✅ Pessoas já Confirmadas ({{ confirmed_count }})</h3>
+                <p class="text-gray-600 text-sm mb-4">Veja quem já teve o comprovante aprovado pelo organizador:</p>
+                
+                {% if guests_confirmed %}
+                    <div class="flex flex-wrap gap-2">
+                        {% for guest in guests_confirmed %}
+                            <span class="bg-green-600 text-white text-sm font-semibold px-3 py-1 rounded-full shadow-md">
+                                {{ guest.name | default('Convidado Anônimo') }}
+                            </span>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-gray-500">Ninguém foi aprovado ainda. Seja o primeiro!</p>
+                {% endif %}
+            </div>
+            {# --- FIM DA LISTA DE NOMES CONFIRMADOS --- #}
+
 
             {# --- STATUS DO PLANO FREEMIUM --- #}
             {% if is_limit_reached %}
@@ -115,17 +176,18 @@
         {% if is_organizer_view %}
             <section class="bg-blue-50 p-6 md:p-10 rounded-xl shadow-lg border-2 border-blue-200">
                 <h3 class="text-3xl font-extrabold text-blue-900 mb-6 flex justify-between items-center">
-                    Painel do Organizador 🔒
+                    Painel de Aprovação 🔒
                     <span class="text-lg font-normal text-gray-700">Total Faltando: {{ guest_limit - confirmed_count }}</span>
                 </h3>
                 
-                <div class="grid grid-cols-3 gap-4 mb-8 text-center font-bold">
+                <div class="grid grid-cols-4 gap-4 mb-8 text-center font-bold">
                     <div class="p-3 bg-green-200 rounded">Confirmados: {{ confirmed_count }}</div>
                     <div class="p-3 bg-yellow-200 rounded">Pendentes: {{ guests_all | length - confirmed_count }}</div>
+                    <div class="p-3 bg-red-200 rounded">Rejeitados: {{ guests_all | selectattr('status', 'equalto', 'REJECTED') | list | length }}</div>
                     <div class="p-3 bg-gray-200 rounded">Total Registros: {{ guests_all | length }}</div>
                 </div>
 
-                <h4 class="text-xl font-bold text-gray-800 mb-4">Comprovantes Recebidos (Todos Status)</h4>
+                <h4 class="text-xl font-bold text-gray-800 mb-4">Comprovantes Recebidos (Ações)</h4>
 
                 {% if guests_all %}
                 <div class="overflow-x-auto">
@@ -134,27 +196,37 @@
                             <tr class="bg-gray-100 text-left text-sm font-semibold text-gray-600 border-b">
                                 <th class="py-3 px-4">Nome</th>
                                 <th class="py-3 px-4">Status</th>
-                                <th class="py-3 px-4">Data Envio</th>
-                                <th class="py-3 px-4">Ações / Comprovante</th>
+                                <th class="py-3 px-4">Comprovante</th>
+                                <th class="py-3 px-4">Ação</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for guest in guests_all %}
                             <tr class="border-b hover:bg-gray-50">
                                 <td class="py-3 px-4">{{ guest.name | default('N/D') }}</td>
-                                <td class="py-3 px-4">
+                                <td class="py-3 px-4 status-cell">
                                     {% set status_class = {'CONFIRMED': 'bg-green-100 text-green-800', 'PENDING': 'bg-yellow-100 text-yellow-800', 'REJECTED': 'bg-red-100 text-red-800'}.get(guest.status, 'bg-gray-100 text-gray-800') %}
                                     <span class="inline-block px-2 py-1 text-xs font-semibold rounded {{ status_class }}">{{ guest.status | default('PENDING') }}</span>
                                 </td>
-                                <td class="py-3 px-4">{{ guest.created_at.split('T')[0] | default('N/D') }}</td>
                                 <td class="py-3 px-4">
                                     {% if guest.payment_proof_url %}
-                                        {# USANDO A URL EXTERNA DINÂMICA (PASSADA PELO app.py) #}
                                         <a href="{{ asset_base_url }}/assets/{{ guest.payment_proof_url }}" target="_blank" class="text-blue-500 hover:text-blue-700 font-medium">
-                                            Baixar/Ver Comprovante
+                                            Ver Imagem
                                         </a>
                                     {% else %}
                                         Sem comprovante
+                                    {% endif %}
+                                </td>
+                                <td class="py-3 px-4">
+                                    {% if guest.status == 'PENDING' %}
+                                        <button 
+                                            onclick="approveGuest('{{ guest.id }}', this)" 
+                                            class="btn-approve px-3 py-1 text-sm rounded transition duration-200"
+                                        >
+                                            Aprovar
+                                        </button>
+                                    {% else %}
+                                        Aprovado/Rejeitado
                                     {% endif %}
                                 </td>
                             </tr>

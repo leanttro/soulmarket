@@ -154,7 +154,6 @@ def home():
         guests_confirmed=guests_confirmed,
         guests_all=guests_all,
         vaquinha_settings=vaquinha_settings,
-        # NOVO: Variável para o link do asset no template HTML
         directus_external_url=DIRECTUS_URL_EXTERNAL 
     )
 
@@ -246,6 +245,44 @@ def confirm_vaquinha():
 
     except Exception as e:
         return jsonify({"status": "error", "message": f"Erro de comunicação ao salvar o registro: {str(e)}"}), 500
+
+# --- ROTA DE API PARA APROVAÇÃO ---
+@app.route('/api/approve_guest', methods=['POST'])
+def approve_guest():
+    
+    # Garante que temos a URL de API
+    directus_api_url = GLOBAL_SUCCESSFUL_URL or clean_url(os.getenv("DIRECTUS_URL", "https://directus.leanttro.com"))
+    
+    # Recebe o ID do convidado a ser aprovado do corpo da requisição JSON
+    try:
+        data = request.get_json()
+        guest_id = data.get('guest_id')
+    except Exception:
+        return jsonify({"status": "error", "message": "ID do convidado não fornecido."}), 400
+
+    if not guest_id:
+        return jsonify({"status": "error", "message": "ID do convidado é obrigatório."}), 400
+
+    # 1. Tenta atualizar o status no Directus
+    try:
+        update_data = {"status": "CONFIRMED"}
+        
+        # Endpoint PATCH (Update) para atualizar um item específico: /items/colecao/ID
+        update_resp = requests.patch(
+            f"{directus_api_url}/items/vaquinha_guests/{guest_id}", 
+            json=update_data, 
+            verify=False
+        )
+        
+        if update_resp.status_code == 200:
+            # Sucesso na atualização
+            return jsonify({"status": "success", "message": "Convidado aprovado com sucesso!"}), 200
+        else:
+            print(f"Erro ao aprovar: {update_resp.text}")
+            return jsonify({"status": "error", "message": "Falha ao atualizar status no Directus."}), 500
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Erro de comunicação ao aprovar o registro: {str(e)}"}), 500
 
 
 if __name__ == '__main__':
