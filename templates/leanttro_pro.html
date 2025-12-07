@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* ================================================
-        NOVAS CORES DINÂMICAS DO TEMA
+        CORES DINÂMICAS DO TEMA
         ================================================
         Define variáveis CSS para uso nas classes Tailwind.
         */
@@ -54,6 +54,10 @@
         }
         .btn-primary:hover {
             background-color: color-mix(in srgb, var(--primary-color) 85%, black);
+            transform: scale(1.05);
+        }
+        .btn-dark:hover {
+            background-color: #374151; /* Lighter Dark Gray */
             transform: scale(1.05);
         }
 
@@ -156,9 +160,7 @@
             {% set index = loop.index0 %}
             {% set current_bg = bg_classes[index % bg_classes | length] %}
 
-            {% if section.section_type == 'hero' %}
-                {% continue %}
-            {% endif %}
+            {% if section.section_type != 'hero' %}
 
             <section id="section-{{ loop.index }}" class="{{ current_bg }} py-24 lg:py-40 border-t border-b border-gray-100 dark:border-gray-800 transition duration-500">
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -178,7 +180,12 @@
                                     {{ section.content | safe }}
                                 </div>
                             </div>
+                            <div class="mt-12 lg:mt-0 order-2">
+                                <div class="w-full h-96 bg-gray-200 dark:bg-gray-800 rounded-xl flex items-center justify-center text-gray-500 dark:text-gray-600 text-lg">
+                                    [IMAGEM AQUI]
+                                </div>
                             </div>
+                        </div>
 
                     {% elif section_type == 'features_grid' %}
                         <div class="text-center mb-20">
@@ -216,9 +223,11 @@
                         </div>
                         
                     {% endif %}
+
                 </div>
             </section>
-        {% endfor %}
+            
+            {% endif %} {% endfor %}
 
     </main>
 
@@ -237,5 +246,5 @@
             
         </div>
     </footer>
-    </body>
+</body>
 </html>
