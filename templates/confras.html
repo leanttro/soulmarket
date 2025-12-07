@@ -21,6 +21,13 @@
             Até 20 convidados GRÁTIS. Gere sua chave PIX e comece a arrecadar em 2 minutos.
         </p>
 
+        <div class="p-4 mb-6 bg-blue-100 border border-blue-400 text-blue-800 rounded-md">
+            <p class="font-bold mb-2">🔑 Aviso Importante:</p>
+            <ul class="list-disc list-inside text-sm space-y-1">
+                <li>O link do seu painel de aprovação (`/admin=TOKEN`) será gerado **após** o clique em "Criar".</li>
+                <li>O domínio precisa de 5 minutos para que o certificado SSL seja ativado.</li>
+            </ul>
+        </div>
         <form id="creationForm" class="space-y-6">
             
             <div>
@@ -37,6 +44,12 @@
                     </span>
                 </div>
                 <p class="text-xs text-gray-500 mt-1">Apenas letras minúsculas e números. Ex: festa-natal</p>
+                
+                <div id="link-preview-container" class="mt-3 p-2 border border-gray-200 rounded-md bg-gray-50 hidden">
+                    <p class="text-xs text-gray-600 font-semibold mb-1">Seus Links Gerados (Preview):</p>
+                    <p id="preview-public" class="text-sm text-green-700 font-mono break-all"></p>
+                    <p id="preview-admin" class="text-xs text-blue-700 font-mono break-all mt-1"></p>
+                </div>
             </div>
             
             <div>
@@ -63,6 +76,35 @@
     </div>
     
     <script>
+        const subdomainInput = document.getElementById('subdomain');
+        const linkPreviewContainer = document.getElementById('link-preview-container');
+        const previewPublic = document.getElementById('preview-public');
+        const previewAdmin = document.getElementById('preview-admin');
+        const domainSuffix = '.leanttro.com';
+
+        // Função para limpar e atualizar os links em tempo real
+        function updateLinkPreview() {
+            let subdomain = subdomainInput.value.toLowerCase();
+            // Limpa o subdomínio de caracteres não permitidos
+            subdomain = subdomain.replace(/[^a-z0-9-]/g, ''); 
+            
+            if (subdomain) {
+                // Link Público
+                previewPublic.innerText = `Vaquinha: https://${subdomain}${domainSuffix}`;
+                
+                // Link Admin (usa o token placeholder)
+                previewAdmin.innerText = `Admin: https://${subdomain}${domainSuffix}/?admin=MASTER_TOKEN_SECRETO`;
+                
+                linkPreviewContainer.classList.remove('hidden');
+            } else {
+                linkPreviewContainer.classList.add('hidden');
+            }
+        }
+
+        // Adiciona o listener de input
+        subdomainInput.addEventListener('input', updateLinkPreview);
+
+        // --- LÓGICA DE ENVIO DO FORMULÁRIO ---
         document.getElementById('creationForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const form = e.target;
@@ -91,15 +133,17 @@
                 const result = await response.json();
 
                 if (response.ok && result.status === 'success') {
-                    // --- CAPTURA DE DADOS E CONSTRUÇÃO DOS LINKS ---
+                    // MENSAGEM DE SUCESSO E CONSTRUÇÃO DOS LINKS (Definitivos)
                     const base_url = result.url;
                     const admin_token = result.admin_token;
+                    
+                    // Constrói a URL do Admin (com o token REAL)
                     const admin_url = `${base_url}/?admin=${admin_token}`;
 
                     messageDiv.className = 'mt-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded-md text-center';
                     
                     messageDiv.innerHTML = `
-                        ✅ **Sucesso!** Sua Divisão de Valores com Leanttr foi criada.
+                        ✅ **Sucesso!** Sua Divisão de Valores com Leanttro foi criada.
                         
                         <p class="mt-4 text-lg font-bold">
                             Link da Vaquinha: <a href="${base_url}" target="_blank" class="text-blue-600 underline">${base_url}</a>
@@ -114,8 +158,9 @@
                             Se o link não funcionar imediatamente, **tente em 5 minutos**.
                         </p>
                     `;
-                    // --- FIM DA MENSAGEM DE SUCESSO APRIMORADA ---
                     
+                    // Remove o listener de input e o formulário
+                    subdomainInput.removeEventListener('input', updateLinkPreview);
                     form.remove(); 
                 } else {
                     messageDiv.className = 'mt-4 p-3 bg-red-100 text-red-700 rounded-md text-center';
