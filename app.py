@@ -14,7 +14,7 @@ app = Flask(__name__)
 # 1. Tenta pegar do ambiente (idealmente HTTPS externo)
 DIRECTUS_URL_EXTERNAL = os.getenv("DIRECTUS_URL", "https://directus.leanttro.com")
 # 2. Endereço IP interno (sem HTTPS) para fallback no Dokploy
-DIRECTUS_URL_INTERNAL = "http://213.199.56.207:8055"
+DIRECTUS_URL_INTERNAL = "http://213.199.56.207:8055" # IP interno do Directus
 
 # Lista de URLs para tentar, priorizando o EXTERNO
 DIRECTUS_URLS_TO_TRY = [
@@ -36,7 +36,6 @@ def home():
     if 'localhost' in host or '127.0.0.1' in host:
         subdomain = 'teste'
     else:
-        # Pega o subdomínio (ex: 'coach' de coach.leanttro.com)
         subdomain = host.split('.')[0] 
 
     # Variáveis para armazenar o resultado da tentativa
@@ -51,28 +50,18 @@ def home():
             url_tenants = f"{current_url}/items/tenants"
             params = {"filter[subdomain][_eq]": subdomain}
             
-            # O verify=False ignora erro de SSL
-            # O timeout=5 evita que o site fique carregando pra sempre se travar
             response = requests.get(url_tenants, params=params, verify=False, timeout=5)
             
-            # Se conseguiu uma resposta 200 (Sucesso), usa essa URL e para o loop
-            if response.status_code == 200:
+            # Se conseguiu uma resposta 200 (Sucesso) ou um erro HTTP (4xx/5xx), encerra o loop
+            if response is not None and response.status_code is not None:
                 successful_url = current_url
                 break
-            
-            # Se recebeu um código de erro HTTP (ex: 403, 500) do Directus, 
-            # não é um erro de conexão. Encerra o loop e trata o erro HTTP abaixo.
-            if response.status_code != 200:
-                 successful_url = current_url
-                 break
 
         except Exception as e:
-            # Captura a exceção de conexão e tenta a próxima URL na lista
             last_exception = e
             continue 
             
     # 3. Trata Falha Total de Conexão
-    # Se nenhuma URL estabeleceu conexão (apenas exceções ocorreram)
     if not successful_url:
         return f"""
         <h1>ERRO CRÍTICO DE CONEXÃO</h1>
@@ -81,12 +70,11 @@ def home():
         <p><strong>Erro Técnico:</strong> {str(last_exception)}</p>
         <hr>
         <h3>Solução:</h3>
-        <p>Verifique se o Directus está online e as regras de firewall do Dokploy.</p>
+        <p>Verifique se o Directus está online.</p>
         """, 500
 
-    # 4. Trata erros HTTP (Se estabeleceu conexão, mas o status não é 200/OK)
+    # 4. Trata erros HTTP (Se conectou, mas o status não é 200/OK)
     if response.status_code != 200:
-        # Se conectou, mas o Directus devolveu um erro (ex: 403 Proibido)
         return f"""
         <h1>ERRO NO DIRECTUS: {response.status_code}</h1>
         <p>O Directus recusou a conexão usando a URL: <strong>{successful_url}</strong></p>
@@ -97,7 +85,6 @@ def home():
     data = response.json()
     
     # 5. Trata Loja Não Encontrada (404 Lógico)
-    # Se conectou com sucesso, mas a lista veio vazia (não achou a loja)
     if not data.get('data'):
          return f"""
         <h1>Loja não encontrada (404)</h1>
@@ -105,24 +92,38 @@ def home():
         <p>Confira no Directus > Tenants se o campo 'subdomain' é exatamente: <code>{subdomain}</code></p>
         """, 404
 
-    # 6. Carrega a loja e busca produtos
+    # 6. Carrega a loja e busca dados relacionados
     tenant = data['data'][0]
+    tenant_id = tenant['id']
     
-    # Busca produtos usando a URL que funcionou
+    # Busca produtos (mantido do código original)
     prod_resp = requests.get(
         f"{successful_url}/items/products",
-        params={"filter[tenant_id][_eq]": tenant['id']},
+        params={"filter[tenant_id][_eq]": tenant_id},
         verify=False
     )
     products = prod_resp.json().get('data', [])
+    
+    # Busca SECTIONS (NOVA LÓGICA)
+    sections_resp = requests.get(
+        f"{successful_url}/items/sections", 
+        params={
+            "filter[tenant_id][_eq]": tenant_id, 
+            "sort": "order_index", # Usa 'order_index' para ordenar as sections
+            "filter[page_slug][_eq]": "home" # Filtra para buscar apenas as sections da página inicial
+        }, 
+        verify=False
+    )
+    # Garante que 'sections' seja uma lista vazia se a requisição falhar
+    sections = sections_resp.json().get('data', []) 
     
     # --- Renderização do Template ---
     
     template_base_name = tenant.get('template_name') or 'home'
     template_file_name = f"{template_base_name}.html"
     
-    # Renderiza o template escolhido
-    return render_template(template_file_name, tenant=tenant, products=products)
+    # 3. Renderiza o template escolhido (AGORA PASSANDO SECTIONS)
+    return render_template(template_file_name, tenant=tenant, products=products, sections=sections)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
