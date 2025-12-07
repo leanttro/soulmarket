@@ -12,7 +12,6 @@
         Define variáveis CSS para uso nas classes Tailwind.
         */
         :root {
-            /* Cor Primária e Secundária do Directus */
             --primary-color: {{ tenant.primary_color | default('#4F46E5') }}; 
             --secondary-color: {{ tenant.secondary_color | default('#F59E0B') }}; 
             --whatsapp-color: #25D366; 
@@ -31,7 +30,6 @@
         }
         
         /* CORREÇÃO CRÍTICA: Estilo para botões criados dentro do campo 'Content' do Directus */
-        /* Isso garante que <a> tags com classes genéricas se pareçam com botões Tailwind premium */
         .btn-primary, .btn-dark, .btn-lg, .btn-sm {
             display: inline-flex;
             align-items: center;
@@ -64,19 +62,16 @@
     </style>
 
     <script>
-        // Função para alternar tema
         function toggleTheme() {
             const htmlEl = document.documentElement;
             const isDark = htmlEl.classList.toggle('dark');
             localStorage.setItem('theme', isDark ? 'dark' : 'light');
         }
 
-        // Lógica de inicialização (Roda antes da renderização)
         (function() {
             const htmlEl = document.documentElement;
             const storedTheme = localStorage.getItem('theme');
             
-            // Se a preferência não existe, use 'dark' como padrão (estilo Tesla)
             const isDark = (storedTheme === 'dark' || storedTheme === null);
             
             if (isDark) {
@@ -235,7 +230,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             
             <p class="text-sm text-gray-400 mb-6">
-                &copy; {{ 'now' | date('%Y') }} {{ tenant.company_name | default('Leanttro') }}. Todos os direitos reservados.
+                &copy; 2025 {{ tenant.company_name | default('Leanttro') }}. Todos os direitos reservados.
             </p>
 
             <div class="flex justify-center space-x-8 text-sm">
