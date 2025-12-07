@@ -15,7 +15,7 @@ app = Flask(__name__)
 # CONFIGURAÇÃO DE CONEXÃO (ROBUSTA)
 # =========================================================================
 DIRECTUS_URL_EXTERNAL = os.getenv("DIRECTUS_URL", "https://directus.leanttro.com")
-DIRECTUS_URL_INTERNAL = "http://213.199.56.207:8055" 
+DIRECTUS_URL_INTERNAL = "http://213.199.56.207:8055"
 
 DIRECTUS_URLS_TO_TRY = [
     DIRECTUS_URL_EXTERNAL,
@@ -65,7 +65,7 @@ def home():
     if 'localhost' in host or '127.0.0.1' in host:
         subdomain = 'teste'
     else:
-        subdomain = host.split('.')[0] 
+        subdomain = host.split('.')[0]
 
     successful_url = None
     response = None
@@ -82,13 +82,13 @@ def home():
             
             if response is not None and response.status_code is not None:
                 successful_url = current_url
-                GLOBAL_SUCCESSFUL_URL = current_url 
+                GLOBAL_SUCCESSFUL_URL = current_url
                 break
         except Exception as e:
             last_exception = e
-            continue 
+            continue
             
-    # ... (Tratamento de erros e 404/confras - SEM ALTERAÇÃO) ...
+    # ... (Tratamento de erros e 404/confras) ...
     if not successful_url:
         return f"""
         <h1>ERRO CRÍTICO DE CONEXÃO</h1>
@@ -124,24 +124,21 @@ def home():
     # Busca Produtos e SECTIONS (igual)
     products = fetch_collection_data(successful_url, "products", tenant_id)
     sections = fetch_collection_data(
-        successful_url, 
-        "sections", 
-        tenant_id, 
+        successful_url,
+        "sections",
+        tenant_id,
         params={
-            "sort": "order_index", 
-            "filter[page_slug][_eq]": "home", 
-            "fields": "*.*" 
+            "sort": "order_index",
+            "filter[page_slug][_eq]": "home",
+            "fields": "*.*"
         }
     )
     
-    # CORREÇÃO CRÍTICA: Forçar o uso da URL Interna para buscar dados, 
-    # pois a URL externa pode falhar por SSL, mesmo com verify=False.
-    url_para_dados = successful_url
-    if successful_url == DIRECTUS_URL_EXTERNAL:
-        url_para_dados = DIRECTUS_URL_INTERNAL
-
+    # CORREÇÃO CRÍTICA: Removendo a lógica de forçar a URL INTERNA, 
+    # pois a URL de 'successful_url' deve ser usada.
+    
     guests_all = fetch_collection_data(
-        url_para_dados, # USA A URL INTERNA AQUI
+        successful_url, # AGORA USA A URL QUE JÁ CONECTOU COM SUCESSO
         "vaquinha_guests", 
         tenant_id, 
         params={"sort": "-created_at"}
@@ -159,19 +156,17 @@ def home():
     template_file_name = f"{template_base_name}.html"
     
     return render_template(
-        template_file_name, 
-        tenant=tenant, 
-        products=products, 
+        template_file_name,
+        tenant=tenant,
+        products=products,
         sections=sections,
         guests_confirmed=guests_confirmed,
         guests_all=guests_all,
         vaquinha_settings=vaquinha_settings,
-        directus_external_url=DIRECTUS_URL_EXTERNAL 
+        directus_external_url=DIRECTUS_URL_EXTERNAL
     )
 
 # --- ROTA DE API PARA CRIAÇÃO DE TENANT (Novo Endpoint de Escala) ---
-# ... (NÃO ALTERADO, POIS JÁ USA A VARIÁVEL GLOBAL DE URL) ...
-
 @app.route('/api/create_tenant', methods=['POST'])
 def create_tenant():
     ADMIN_TOKEN = os.getenv("DIRECTUS_ADMIN_TOKEN")
@@ -190,7 +185,7 @@ def create_tenant():
         
         # Limpeza do subdomínio
         subdomain_clean = data['subdomain'].lower()
-        subdomain_clean = re.sub(r'[^a-z0-9-]', '', subdomain_clean) 
+        subdomain_clean = re.sub(r'[^a-z0-9-]', '', subdomain_clean)
         
         if not subdomain_clean:
              return jsonify({"status": "error", "message": "Subdomínio inválido."}), 400
@@ -202,13 +197,13 @@ def create_tenant():
             "subdomain": subdomain_clean,
             "email": data['email'],
             "pix_key": data['pix_key'],
-            "pix_owner_name": data['company_name'], 
-            "guest_limit": 20, 
+            "pix_owner_name": data['company_name'],
+            "guest_limit": 20,
             "plan_type": "free",
-            "template_name": "vaquinha", 
+            "template_name": "vaquinha",
             "status": "active",
-            "primary_color": "#22C55E", 
-            "admin_token": admin_token 
+            "primary_color": "#22C55E",
+            "admin_token": admin_token
         }
         
         headers = {
@@ -218,9 +213,9 @@ def create_tenant():
 
         # 3. Criação do Tenant
         tenant_create_resp = requests.post(
-            f"{directus_api_url}/items/tenants", 
-            headers=headers, 
-            json=tenant_data, 
+            f"{directus_api_url}/items/tenants",
+            headers=headers,
+            json=tenant_data,
             verify=False
         )
         
@@ -230,7 +225,7 @@ def create_tenant():
                  error_msg = f"O subdomínio '{subdomain_clean}' já está em uso."
             
             return jsonify({
-                "status": "error", 
+                "status": "error",
                 "message": error_msg
             }), 400
 
@@ -240,31 +235,30 @@ def create_tenant():
         user_data = {
             "tenant_id": new_tenant_id,
             "email": data['email'],
-            "password_hash": data['password'], 
-            "role": "Loja Admin", 
+            "password_hash": data['password'],
+            "role": "Loja Admin",
             "name": data['company_name']
         }
         
         requests.post(
-            f"{directus_api_url}/items/users", 
-            headers=headers, 
-            json=user_data, 
+            f"{directus_api_url}/items/users",
+            headers=headers,
+            json=user_data,
             verify=False
         )
         
         return jsonify({
-            "status": "success", 
+            "status": "success",
             "message": "Sua vaquinha foi criada!",
             "url": f"http://{subdomain_clean}.leanttro.com",
-            "subdomain": subdomain_clean, 
-            "admin_token": admin_token 
+            "subdomain": subdomain_clean,
+            "admin_token": admin_token
         }), 200
 
     except Exception as e:
         return jsonify({"status": "error", "message": f"Erro interno do servidor: {str(e)}"}), 500
 
 # --- ROTA DE API PARA APROVAÇÃO (PATCH) ---
-# ... (NÃO ALTERADO) ...
 @app.route('/api/approve_guest', methods=['POST'])
 def approve_guest():
     
@@ -283,8 +277,8 @@ def approve_guest():
         update_data = {"status": "CONFIRMED"}
         
         update_resp = requests.patch(
-            f"{directus_api_url}/items/vaquinha_guests/{guest_id}", 
-            json=update_data, 
+            f"{directus_api_url}/items/vaquinha_guests/{guest_id}",
+            json=update_data,
             verify=False
         )
         
@@ -297,7 +291,6 @@ def approve_guest():
         return jsonify({"status": "error", "message": f"Erro de comunicação ao aprovar o registro: {str(e)}"}), 500
 
 # --- ROTA DE API PARA ENVIO DE COMPROVANTE (POST) ---
-# ... (NÃO ALTERADO) ...
 @app.route('/api/confirm_vaquinha', methods=['POST'])
 def confirm_vaquinha():
     
@@ -324,7 +317,7 @@ def confirm_vaquinha():
         if tenant_data:
             tenant_id = tenant_data[0].get('id')
     except Exception:
-        pass 
+        pass
 
     if not tenant_id:
         return jsonify({"status": "error", "message": "Tenant não encontrado no Directus."}), 404
@@ -334,9 +327,9 @@ def confirm_vaquinha():
         files = {'file': (proof_file.filename, proof_file.stream, proof_file.mimetype)}
         
         upload_resp = requests.post(
-            f"{directus_api_url}/files", 
-            files=files, 
-            verify=False, 
+            f"{directus_api_url}/files",
+            files=files,
+            verify=False,
             timeout=10
         )
         
@@ -352,14 +345,14 @@ def confirm_vaquinha():
         guest_data = {
             "tenant_id": tenant_id,
             "name": guest_name,
-            "email": guest_email, 
-            "payment_proof_url": file_id, 
+            "email": guest_email,
+            "payment_proof_url": file_id,
             "status": "PENDING"
         }
         
         save_resp = requests.post(
-            f"{directus_api_url}/items/vaquinha_guests", 
-            json=guest_data, 
+            f"{directus_api_url}/items/vaquinha_guests",
+            json=guest_data,
             verify=False
         )
         
