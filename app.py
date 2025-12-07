@@ -4,6 +4,7 @@ from flask import Flask, render_template, request, jsonify
 import urllib3
 from urllib.parse import urljoin 
 import json 
+import re # NOVO: Importa a biblioteca de regex do Python
 
 # Desabilita alertas de SSL
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -182,8 +183,10 @@ def create_tenant():
         if not all(data.get(field) for field in required_fields):
             return jsonify({"status": "error", "message": "Preencha todos os campos obrigatórios."}), 400
         
-        # Limpa e valida o subdomínio
-        subdomain_clean = data['subdomain'].lower().replace(' ', '').replace(/[^a-z0-9]/g, '')
+        # CORREÇÃO CRÍTICA AQUI: Usando re.sub para limpeza Python pura
+        subdomain_clean = data['subdomain'].lower()
+        subdomain_clean = re.sub(r'[^a-z0-9-]', '', subdomain_clean) # Permite apenas letras, números e hífens
+        
         if not subdomain_clean:
              return jsonify({"status": "error", "message": "Subdomínio inválido."}), 400
 
@@ -230,7 +233,8 @@ def create_tenant():
         user_data = {
             "tenant_id": new_tenant_id,
             "email": data['email'],
-            "password_hash": data['password'],
+            # Nota: Em um ambiente real, 'password' deveria ser hasheada antes de salvar no banco
+            "password_hash": data['password'], 
             "role": "admin", 
             "name": data['company_name']
         }
