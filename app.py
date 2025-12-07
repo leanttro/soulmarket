@@ -3,6 +3,7 @@ import requests
 from flask import Flask, render_template, request, jsonify 
 import urllib3
 from urllib.parse import urljoin 
+import json 
 
 # Desabilita alertas de SSL
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -105,10 +106,17 @@ def home():
     
     # 4. TRATAMENTO DE LOJA NÃO ENCONTRADA (404 Lógico)
     if not data.get('data'):
+         # Se o subdomínio é 'confras', ele tenta carregar a página de cadastro
+         if subdomain == 'confras':
+             template_file_name = "confras.html"
+             # Não precisa passar dados, pois a página de cadastro é estática
+             return render_template(template_file_name)
+         
+         # Caso contrário, retorna 404
          return f"""
-        <h1>Loja não encontrada (404)</h1>
-        <p>O sistema conectou no Directus, mas não achou nenhuma loja com o subdomínio: <strong>{subdomain}</strong></p>
-        """, 404
+            <h1>Loja não encontrada (404)</h1>
+            <p>O sistema conectou no Directus, mas não achou nenhuma loja com o subdomínio: <strong>{subdomain}</strong></p>
+            """, 404
 
     # 5. BUSCA DE DADOS (Coleções)
     tenant = data['data'][0]
@@ -132,7 +140,7 @@ def home():
         successful_url, 
         "vaquinha_guests", 
         tenant_id, 
-        params={"sort": "-created_at"} # Ordena do mais recente
+        params={"sort": "-created_at"}
     )
     
     # Filtra os confirmados para o contador público/lógica Freemium
@@ -157,20 +165,135 @@ def home():
         directus_external_url=DIRECTUS_URL_EXTERNAL 
     )
 
-# --- ROTA DE API (Para o Formulário de Envio de Comprovante) ---
+# --- ROTA DE API PARA CRIAÇÃO DE TENANT (Novo Endpoint de Escala) ---
+@app.route('/api/create_tenant', methods=['POST'])
+def create_tenant():
+    ADMIN_TOKEN = os.getenv("DIRECTUS_ADMIN_TOKEN")
+    
+    if not ADMIN_TOKEN:
+        return jsonify({"status": "error", "message": "Token de administração não configurado (DIRECTUS_ADMIN_TOKEN)."}), 500
+
+    directus_api_url = GLOBAL_SUCCESSFUL_URL or clean_url(os.getenv("DIRECTUS_URL", "https://directus.leanttro.com"))
+    
+    try:
+        data = request.get_json()
+        
+        required_fields = ['company_name', 'subdomain', 'email', 'pix_key', 'password']
+        if not all(data.get(field) for field in required_fields):
+            return jsonify({"status": "error", "message": "Preencha todos os campos obrigatórios."}), 400
+        
+        subdomain_clean = data['subdomain'].lower().replace(/[^a-z0-9]/g, '')
+        if not subdomain_clean:
+             return jsonify({"status": "error", "message": "Subdomínio inválido."}), 400
+
+        tenant_data = {
+            "company_name": data['company_name'],
+            "subdomain": subdomain_clean,
+            "email": data['email'],
+            "pix_key": data['pix_key'],
+            "pix_owner_name": data['company_name'], 
+            "guest_limit": 20, 
+            "plan_type": "free",
+            "template_name": "vaquinha", 
+            "status": "active",
+            "primary_color": "#22C55E", 
+            "admin_token": subdomain_clean.upper() + "_TOKEN_MASTER" 
+        }
+        
+        headers = {
+            "Authorization": f"Bearer {ADMIN_TOKEN}",
+            "Content-Type": "application/json"
+        }
+
+        # 3. Criação do Tenant
+        tenant_create_resp = requests.post(
+            f"{directus_api_url}/items/tenants", 
+            headers=headers, 
+            json=tenant_data, 
+            verify=False
+        )
+        
+        if tenant_create_resp.status_code != 200:
+            error_msg = tenant_create_resp.json().get('errors', [{}])[0].get('message', 'Erro desconhecido ao criar o Tenant.')
+            if 'subdomain' in error_msg:
+                 error_msg = f"O subdomínio '{subdomain_clean}' já está em uso."
+            
+            return jsonify({
+                "status": "error", 
+                "message": error_msg
+            }), 400
+
+        new_tenant_id = tenant_create_resp.json()['data']['id']
+        
+        # 4. Criação do Usuário na tabela 'users'
+        user_data = {
+            "tenant_id": new_tenant_id,
+            "email": data['email'],
+            "password_hash": data['password'],
+            "role": "admin", 
+            "name": data['company_name']
+        }
+        
+        requests.post(
+            f"{directus_api_url}/items/users", 
+            headers=headers, 
+            json=user_data, 
+            verify=False
+        )
+        
+        return jsonify({
+            "status": "success", 
+            "message": "Sua vaquinha foi criada!",
+            "url": f"http://{subdomain_clean}.leanttro.com"
+        }), 200
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Erro interno do servidor: {str(e)}"}), 500
+
+# --- ROTA DE API PARA APROVAÇÃO (PATCH) ---
+@app.route('/api/approve_guest', methods=['POST'])
+def approve_guest():
+    
+    directus_api_url = GLOBAL_SUCCESSFUL_URL or clean_url(os.getenv("DIRECTUS_URL", "https://directus.leanttro.com"))
+    
+    try:
+        data = request.get_json()
+        guest_id = data.get('guest_id')
+    except Exception:
+        return jsonify({"status": "error", "message": "ID do convidado não fornecido."}), 400
+
+    if not guest_id:
+        return jsonify({"status": "error", "message": "ID do convidado é obrigatório."}), 400
+
+    try:
+        update_data = {"status": "CONFIRMED"}
+        
+        update_resp = requests.patch(
+            f"{directus_api_url}/items/vaquinha_guests/{guest_id}", 
+            json=update_data, 
+            verify=False
+        )
+        
+        if update_resp.status_code == 200:
+            return jsonify({"status": "success", "message": "Convidado aprovado com sucesso!"}), 200
+        else:
+            return jsonify({"status": "error", "message": "Falha ao atualizar status no Directus."}), 500
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Erro de comunicação ao aprovar o registro: {str(e)}"}), 500
+
+# --- ROTA DE API PARA ENVIO DE COMPROVANTE (POST) ---
 @app.route('/api/confirm_vaquinha', methods=['POST'])
 def confirm_vaquinha():
     
     directus_api_url = GLOBAL_SUCCESSFUL_URL or clean_url(os.getenv("DIRECTUS_URL", "https://directus.leanttro.com"))
     
-    # 1. Obter Dados do Formulário
     guest_name = request.form.get('name')
     proof_file = request.files.get('proof')
 
     if not all([guest_name, proof_file]):
         return jsonify({"status": "error", "message": "Nome e comprovante são obrigatórios."}), 400
 
-    # 2. Buscar o Tenant_ID
     host = request.headers.get('Host', '')
     subdomain = host.split('.')[0]
     tenant_id = None
@@ -190,7 +313,6 @@ def confirm_vaquinha():
     if not tenant_id:
         return jsonify({"status": "error", "message": "Tenant não encontrado no Directus."}), 404
 
-    # 3. Upload do Arquivo (Comprovante) para o Directus
     file_id = None
     try:
         files = {'file': (proof_file.filename, proof_file.stream, proof_file.mimetype)}
@@ -210,7 +332,6 @@ def confirm_vaquinha():
     except Exception as e:
         return jsonify({"status": "error", "message": f"Erro de comunicação ao fazer upload do comprovante: {str(e)}"}), 500
 
-    # 4. Salvar o Registro na Tabela vaquinha_guests
     try:
         guest_data = {
             "tenant_id": tenant_id,
@@ -226,7 +347,6 @@ def confirm_vaquinha():
         )
         
         if save_resp.status_code == 200 or save_resp.status_code == 204:
-            # Mensagem de sucesso (igual à última versão)
             return """
                 <!DOCTYPE html>
                 <html lang="pt-br">
@@ -245,44 +365,6 @@ def confirm_vaquinha():
 
     except Exception as e:
         return jsonify({"status": "error", "message": f"Erro de comunicação ao salvar o registro: {str(e)}"}), 500
-
-# --- ROTA DE API PARA APROVAÇÃO ---
-@app.route('/api/approve_guest', methods=['POST'])
-def approve_guest():
-    
-    # Garante que temos a URL de API
-    directus_api_url = GLOBAL_SUCCESSFUL_URL or clean_url(os.getenv("DIRECTUS_URL", "https://directus.leanttro.com"))
-    
-    # Recebe o ID do convidado a ser aprovado do corpo da requisição JSON
-    try:
-        data = request.get_json()
-        guest_id = data.get('guest_id')
-    except Exception:
-        return jsonify({"status": "error", "message": "ID do convidado não fornecido."}), 400
-
-    if not guest_id:
-        return jsonify({"status": "error", "message": "ID do convidado é obrigatório."}), 400
-
-    # 1. Tenta atualizar o status no Directus
-    try:
-        update_data = {"status": "CONFIRMED"}
-        
-        # Endpoint PATCH (Update) para atualizar um item específico: /items/colecao/ID
-        update_resp = requests.patch(
-            f"{directus_api_url}/items/vaquinha_guests/{guest_id}", 
-            json=update_data, 
-            verify=False
-        )
-        
-        if update_resp.status_code == 200:
-            # Sucesso na atualização
-            return jsonify({"status": "success", "message": "Convidado aprovado com sucesso!"}), 200
-        else:
-            print(f"Erro ao aprovar: {update_resp.text}")
-            return jsonify({"status": "error", "message": "Falha ao atualizar status no Directus."}), 500
-
-    except Exception as e:
-        return jsonify({"status": "error", "message": f"Erro de comunicação ao aprovar o registro: {str(e)}"}), 500
 
 
 if __name__ == '__main__':

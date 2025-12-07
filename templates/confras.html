@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crie Sua Vaquinha Grátis | SoulMarket</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root { --primary: #10B981; } /* Tailwind green-500 */
+        .bg-primary { background-color: var(--primary); }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+
+    <div class="w-full max-w-lg bg-white p-8 rounded-xl shadow-2xl">
+        <h2 class="text-3xl font-extrabold text-gray-900 mb-6 text-center">
+            Crie Sua Vaquinha Grátis
+        </h2>
+        <p class="text-gray-600 mb-8 text-center">
+            Até 20 convidados GRÁTIS. Gere sua chave PIX e comece a arrecadar em 2 minutos.
+        </p>
+
+        <form id="creationForm" class="space-y-6">
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Nome da Confraternização:</label>
+                <input type="text" id="company_name" required class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Subdomínio (Seu Link Único):</label>
+                <div class="mt-1 flex rounded-md shadow-sm">
+                    <input type="text" id="subdomain" required class="flex-1 block w-full p-3 border border-gray-300 rounded-l-md focus:border-primary focus:ring-primary">
+                    <span class="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
+                        .leanttro.com
+                    </span>
+                </div>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Sua Chave PIX (Para Receber Pagamentos):</label>
+                <input type="text" id="pix_key" required class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Seu E-mail (Acesso):</label>
+                <input type="email" id="email" required class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Crie uma Senha (Acesso):</label>
+                <input type="password" id="password" required class="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:border-primary focus:ring-primary">
+            </div>
+            
+            <button type="submit" class="w-full btn-primary py-3 px-4 rounded-md font-semibold hover:opacity-90 transition">
+                Criar Minha Vaquinha Agora
+            </button>
+            
+            <div id="message" class="mt-4 p-3 rounded-md text-center hidden"></div>
+        </form>
+    </div>
+    
+    <script>
+        document.getElementById('creationForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const form = e.target;
+            const button = form.querySelector('button[type="submit"]');
+            const messageDiv = document.getElementById('message');
+
+            const data = {
+                company_name: document.getElementById('company_name').value,
+                subdomain: document.getElementById('subdomain').value.toLowerCase().replace(/[^a-z0-9]/g, ''),
+                email: document.getElementById('email').value,
+                pix_key: document.getElementById('pix_key').value,
+                password: document.getElementById('password').value
+            };
+            
+            button.disabled = true;
+            button.innerText = 'Criando... Aguarde 10s';
+            messageDiv.classList.add('hidden');
+
+            try {
+                const response = await fetch('/api/create_tenant', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+
+                if (response.ok && result.status === 'success') {
+                    messageDiv.className = 'mt-4 p-3 bg-green-100 text-green-700 rounded-md text-center';
+                    messageDiv.innerHTML = `✅ **Sucesso!** Sua vaquinha foi criada. <a href="${result.url}" target="_blank" class="font-bold underline">Acesse aqui</a>.`;
+                } else {
+                    messageDiv.className = 'mt-4 p-3 bg-red-100 text-red-700 rounded-md text-center';
+                    messageDiv.innerHTML = `⛔ Erro: ${result.message || 'Falha desconhecida.'}`;
+                }
+
+            } catch (error) {
+                messageDiv.className = 'mt-4 p-3 bg-red-100 text-red-700 rounded-md text-center';
+                messageDiv.innerHTML = '⛔ Erro de rede. Tente novamente.';
+            } finally {
+                button.disabled = false;
+                button.innerText = 'Criar Minha Vaquinha Agora';
+                messageDiv.classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
