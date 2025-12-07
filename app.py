@@ -185,7 +185,8 @@ def create_tenant():
         
         # Limpeza do subdomínio
         subdomain_clean = data['subdomain'].lower()
-        subdomain_clean = re.sub(r'[^a-z0-9-]', '', subdomain_clean) # Permite apenas letras, números e hífens
+        # Permite apenas letras, números e hífens
+        subdomain_clean = re.sub(r'[^a-z0-9-]', '', subdomain_clean) 
         
         if not subdomain_clean:
              return jsonify({"status": "error", "message": "Subdomínio inválido."}), 400
@@ -234,7 +235,7 @@ def create_tenant():
             "tenant_id": new_tenant_id,
             "email": data['email'],
             "password_hash": data['password'], 
-            "role": "Loja Admin", # <-- AQUI ESTÁ A CORREÇÃO CRÍTICA!
+            "role": "Loja Admin", # <-- CORREÇÃO CRÍTICA PARA MULTITENANT
             "name": data['company_name']
         }
         
@@ -248,7 +249,8 @@ def create_tenant():
         return jsonify({
             "status": "success", 
             "message": "Sua vaquinha foi criada!",
-            "url": f"http://{subdomain_clean}.leanttro.com"
+            "url": f"http://{subdomain_clean}.leanttro.com",
+            "subdomain": subdomain_clean # Retorna o subdominio para uso no frontend
         }), 200
 
     except Exception as e:
@@ -293,10 +295,11 @@ def confirm_vaquinha():
     directus_api_url = GLOBAL_SUCCESSFUL_URL or clean_url(os.getenv("DIRECTUS_URL", "https://directus.leanttro.com"))
     
     guest_name = request.form.get('name')
+    guest_email = request.form.get('email') # <-- NOVO: Puxa o campo email
     proof_file = request.files.get('proof')
 
-    if not all([guest_name, proof_file]):
-        return jsonify({"status": "error", "message": "Nome e comprovante são obrigatórios."}), 400
+    if not all([guest_name, guest_email, proof_file]): # <-- NOVO: Valida o email
+        return jsonify({"status": "error", "message": "Nome, email e comprovante são obrigatórios."}), 400
 
     host = request.headers.get('Host', '')
     subdomain = host.split('.')[0]
@@ -340,6 +343,7 @@ def confirm_vaquinha():
         guest_data = {
             "tenant_id": tenant_id,
             "name": guest_name,
+            "email": guest_email, # <-- SALVA O EMAIL
             "payment_proof_url": file_id, 
             "status": "PENDING"
         }
