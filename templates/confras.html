@@ -1,291 +1,129 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-br" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crie Sua Divisão de Valores Grátis | Leanttro</title>
+    <title>Start Your Event | Leanttro</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root { --primary: #1a1a1a; --accent: #d4af37; } 
-        
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        body { font-family: 'Inter', sans-serif; transition: background-color 0.3s, color 0.3s; }
+        :root { --primary: #10B981; } 
+        .input-theme {
+            transition: all 0.3s ease;
         }
-
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateX(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-
-        body {
-            background: linear-gradient(to bottom, #fafafa 0%, #f5f5f5 100%);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        }
-
-        .glass-premium {
-            background: rgba(255, 255, 255, 0.98);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(0, 0, 0, 0.06);
-        }
-
-        .input-luxury {
-            transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
-            border: 2px solid #e5e5e5;
-        }
-
-        .input-luxury:focus {
-            border-color: #1a1a1a;
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        .input-theme:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
             outline: none;
         }
 
-        .btn-submit {
-            background: linear-gradient(135deg, #1a1a1a 0%, #000000 100%);
-            transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
-            border: 1px solid rgba(212, 175, 55, 0.3);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .btn-submit::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.1);
-            transform: translate(-50%, -50%);
-            transition: width 0.6s, height 0.6s;
-        }
-
-        .btn-submit:hover::before {
-            width: 300px;
-            height: 300px;
-        }
-
-        .btn-submit:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 16px 32px rgba(0, 0, 0, 0.2);
-            border-color: #d4af37;
-        }
-
-        .btn-submit:active {
-            transform: translateY(-1px);
-        }
-
-        .label-luxury {
-            font-weight: 600;
-            letter-spacing: 0.05em;
-            color: #1a1a1a;
-            text-transform: uppercase;
-            font-size: 0.75rem;
-        }
-
-        .fade-in {
-            animation: fadeInUp 0.8s ease-out forwards;
-        }
-
-        .slide-in {
-            animation: slideIn 0.8s ease-out forwards;
-        }
-
-        .prefix-badge {
-            background: linear-gradient(135deg, #f9f9f9 0%, #f0f0f0 100%);
-            transition: all 0.3s ease;
-            border-right: 2px solid #e5e5e5;
-        }
-
-        .luxury-divider {
-            height: 1px;
-            background: linear-gradient(90deg, transparent, #e0e0e0, transparent);
-        }
-
-        .success-card {
-            background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%);
-            border: 2px solid #e0e0e0;
-        }
-
-        .admin-highlight {
-            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-            border: 2px solid #d4af37;
-        }
-
-        .logo-area {
-            position: relative;
-        }
-
-        .logo-area::after {
-            content: '';
-            position: absolute;
-            bottom: -20px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 60px;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, #d4af37, transparent);
-        }
+        /* LIGHT MODE (Padrão Tailwind, mas definido para contexto) */
+        .input-theme { @apply bg-white border-zinc-300 text-zinc-900 placeholder-zinc-400; }
+        
+        /* DARK MODE */
+        .dark .input-theme { @apply bg-zinc-700 border-zinc-600 text-white placeholder-zinc-500; }
     </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-6">
+<body class="bg-white dark:bg-zinc-900 flex items-center justify-center min-h-screen relative overflow-hidden">
 
-    <div class="w-full max-w-3xl relative z-10">
-        
-        <!-- Header -->
-        <div class="text-center mb-12 logo-area fade-in">
-            <h1 class="text-6xl font-light text-gray-900 mb-3 tracking-tight">
+    <div class="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 dark:block hidden">
+        <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-900 rounded-full blur-[120px] opacity-20"></div>
+        <div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-900 rounded-full blur-[120px] opacity-20"></div>
+    </div>
+
+    <div class="w-full max-w-lg p-10 rounded-2xl shadow-2xl relative z-10 
+                bg-zinc-50 dark:bg-zinc-800 
+                shadow-zinc-300/50 dark:shadow-zinc-950/50">
+        <div class="text-center mb-10">
+            <h2 class="text-3xl font-semibold text-zinc-900 dark:text-white tracking-tight mb-2">
                 Leanttro
-            </h1>
-            <p class="text-lg text-gray-500 font-light tracking-wide">
-                Plataforma de Gestão de Eventos
-            </p>
+            </h2>
+            <p class="text-zinc-500 dark:text-zinc-400 text-sm font-light">Plataforma de Gestão de Eventos.</p>
         </div>
-
-        <!-- Main Card -->
-        <div class="glass-premium rounded-2xl shadow-2xl p-12 fade-in" style="animation-delay: 0.2s;">
-            
-            <div class="text-center mb-10">
-                <h2 class="text-3xl font-light text-gray-900 mb-3">
-                    Criar Novo Evento
-                </h2>
-                <div class="luxury-divider max-w-xs mx-auto my-4"></div>
-                <p class="text-gray-600 font-light">
-                    Configure sua divisão de valores em minutos
-                </p>
+        
+        <form id="creationForm" class="space-y-6">
+            <div class="space-y-1">
+                <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Nome do Evento</label>
+                <input type="text" id="company_name" required placeholder="Ex: Festa de Final de Ano" class="mt-1 block w-full p-4 rounded-lg input-theme text-sm">
             </div>
 
-            <form id="creationForm" class="space-y-8">
-                
-                <!-- Nome do Evento -->
-                <div class="slide-in" style="animation-delay: 0.3s;">
-                    <label class="label-luxury block mb-3">Nome do Evento</label>
-                    <input 
-                        type="text" 
-                        id="company_name" 
-                        required 
-                        class="input-luxury w-full p-4 rounded-lg text-base"
-                        placeholder="Confraternização de Fim de Ano"
-                    >
-                </div>
-
-                <!-- Link Personalizado -->
-                <div class="slide-in" style="animation-delay: 0.4s;">
-                    <label class="label-luxury block mb-3">Link Personalizado</label>
-                    
-                    <!-- Desktop version -->
-                    <div class="hidden md:flex rounded-lg overflow-hidden border-2 border-gray-200 focus-within:border-gray-900 transition-all">
-                        <span class="prefix-badge inline-flex items-center px-5 text-gray-600 text-sm font-medium">
-                            confras.leanttro.com/festa/
-                        </span>
-                        <input 
-                            type="text" 
-                            id="subdomain" 
-                            required 
-                            placeholder="meu-evento" 
-                            class="flex-1 p-4 focus:outline-none text-base font-medium"
-                        >
-                    </div>
-
-                    <!-- Mobile version -->
-                    <div class="md:hidden">
-                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-2">
-                            <p class="text-xs text-gray-500 font-medium">confras.leanttro.com/festa/</p>
-                        </div>
-                        <input 
-                            type="text" 
-                            id="subdomain-mobile" 
-                            required 
-                            placeholder="meu-evento" 
-                            class="input-luxury w-full p-4 rounded-lg text-base font-medium"
-                        >
-                    </div>
-                </div>
-
-                <!-- Chave PIX -->
-                <div class="slide-in" style="animation-delay: 0.5s;">
-                    <label class="label-luxury block mb-3">Chave PIX</label>
-                    <input 
-                        type="text" 
-                        id="pix_key" 
-                        required 
-                        class="input-luxury w-full p-4 rounded-lg text-base"
-                        placeholder="seu@email.com ou CPF/CNPJ"
-                    >
-                    <p class="text-xs text-gray-500 mt-2 font-light">
-                        Chave para receber os pagamentos dos participantes
-                    </p>
-                </div>
-
-                <!-- Email -->
-                <div class="slide-in" style="animation-delay: 0.6s;">
-                    <label class="label-luxury block mb-3">E-mail de Contato</label>
-                    <input 
-                        type="email" 
-                        id="email" 
-                        required 
-                        class="input-luxury w-full p-4 rounded-lg text-base"
-                        placeholder="contato@empresa.com"
-                    >
-                </div>
-
-                <!-- Senha -->
-                <div class="slide-in" style="animation-delay: 0.7s;">
-                    <label class="label-luxury block mb-3">Senha de Administrador</label>
-                    <input 
-                        type="password" 
-                        id="password" 
-                        required 
-                        class="input-luxury w-full p-4 rounded-lg text-base"
-                        placeholder="••••••••"
-                    >
-                    <p class="text-xs text-gray-500 mt-2 font-light">
-                        Use esta senha para acessar o painel administrativo
-                    </p>
-                </div>
-
-                <!-- Submit Button -->
-                <button 
-                    type="submit" 
-                    class="btn-submit w-full py-5 px-6 rounded-lg font-semibold text-white text-base shadow-xl slide-in"
-                    style="animation-delay: 0.8s;"
-                >
-                    <span class="relative z-10 flex items-center justify-center gap-3">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                        </svg>
-                        Criar Evento
+            <div class="space-y-1">
+                <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">URL Personalizada</label>
+                <div class="mt-1 flex rounded-lg overflow-hidden border focus-within:ring-2 focus-within:ring-emerald-500 transition-colors border-zinc-300 dark:border-zinc-600">
+                    <span class="inline-flex items-center px-4 text-sm border-r bg-zinc-100 text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400 dark:border-zinc-600">
+                        confras.leanttro.com/festa/
                     </span>
-                </button>
-                
-                <!-- Message Area -->
-                <div id="message" class="mt-8 p-8 rounded-xl text-center hidden"></div>
-            </form>
-        </div>
+                    <input type="text" id="subdomain" required placeholder="meu-evento" class="flex-1 block w-full p-4 text-sm outline-none font-medium input-theme border-none">
+                </div>
+            </div>
+            
+            <div class="space-y-1">
+                <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Chave PIX (Recebimento)</label>
+                <input type="text" id="pix_key" required placeholder="CPF, Email ou Aleatória" class="mt-1 block w-full p-4 rounded-lg input-theme text-sm font-mono">
+            </div>
 
-        <!-- Footer -->
-        <div class="text-center mt-10 fade-in" style="animation-delay: 0.9s;">
-            <p class="text-sm text-gray-500 font-light">
-                Desenvolvido por <span class="text-gray-900 font-medium">Leanttro Tecnologia</span>
-            </p>
-        </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-1">
+                    <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Admin E-mail</label>
+                    <input type="email" id="email" required class="mt-1 block w-full p-4 rounded-lg input-theme text-sm">
+                </div>
+                
+                <div class="space-y-1">
+                    <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Senha Admin</label>
+                    <input type="password" id="password" required class="mt-1 block w-full p-4 rounded-lg input-theme text-sm">
+                </div>
+            </div>
+            
+            <button type="submit" class="w-full bg-emerald-500 text-white py-4 rounded-lg font-semibold hover:bg-emerald-600 transition-all duration-300 shadow-lg shadow-emerald-500/20 mt-4">
+                Lançar Plataforma
+            </button>
+            
+            <div id="message" class="mt-6 p-4 rounded-lg text-center hidden text-sm transition-all duration-500"></div>
+        </form>
     </div>
     
     <script>
+        // --- FUNÇÕES GLOBAIS DE TEMA ---
+        // Função para aplicar tema
+        function applyTheme(theme) {
+            const html = document.documentElement;
+            const icon = document.getElementById('theme-icon');
+            
+            if (theme === 'dark') {
+                html.classList.add('dark');
+                localStorage.theme = 'dark';
+                if (icon) {
+                    // Ícone da Lua (modo escuro ativo)
+                    icon.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>';
+                }
+            } else {
+                html.classList.remove('dark');
+                localStorage.theme = 'light';
+                if (icon) {
+                    // Ícone do Sol (modo claro ativo)
+                    icon.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>';
+                }
+            }
+        }
+
+        // Função para alternar o tema
+        function toggleTheme() {
+            const currentTheme = localStorage.theme === 'dark' ? 'light' : 'dark';
+            applyTheme(currentTheme);
+        }
+
+        // Inicialização do tema ao carregar a página
+        if (localStorage.theme === 'light') {
+            applyTheme('light');
+        } else {
+            // Padrão para Dark se não houver preferência
+            applyTheme('dark');
+        }
+
+        window.toggleTheme = toggleTheme;
+        
+        // --- LÓGICA DO FORMULÁRIO (MANTIDA INTACTA) ---
         document.getElementById('creationForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const btn = e.target.querySelector('button');
@@ -293,15 +131,19 @@
             
             const data = {
                 company_name: document.getElementById('company_name').value,
-                subdomain: document.getElementById('subdomain')?.value || document.getElementById('subdomain-mobile').value,
+                subdomain: document.getElementById('subdomain').value,
                 email: document.getElementById('email').value,
                 pix_key: document.getElementById('pix_key').value,
                 password: document.getElementById('password').value
             };
             
-            btn.disabled = true;
-            btn.innerHTML = '<span class="relative z-10 flex items-center justify-center gap-2"><svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Processando...</span>';
+            btn.disabled = true; btn.innerText = 'Processando...';
+            btn.classList.add('opacity-70', 'cursor-not-allowed');
             
+            // Adicionando classes de tema para o feedback de mensagem
+            const successClasses = 'bg-emerald-100 text-emerald-800 border-emerald-400 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800 backdrop-blur-sm';
+            const errorClasses = 'bg-red-100 text-red-700 border-red-400 dark:bg-red-900/30 dark:text-red-400 dark:border-red-900/50';
+
             try {
                 const res = await fetch('/api/create_tenant', {
                     method: 'POST',
@@ -314,78 +156,34 @@
                     const publicLink = json.url; 
                     const adminLink = `${publicLink}?admin=${json.admin_token}`;
                     
+                    msg.className = `mt-6 p-4 rounded-lg text-center hidden text-sm transition-all duration-500 ${successClasses}`;
                     msg.classList.remove('hidden');
-                    msg.className = 'success-card mt-8 p-8 rounded-xl shadow-xl';
-                    msg.innerHTML = `
-                        <div class="space-y-6">
-                            <div class="flex items-center justify-center gap-3 text-2xl font-light text-gray-900">
-                                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                                Evento Criado
-                            </div>
-                            
-                            <div style="height: 1px; background: linear-gradient(90deg, transparent, #e0e0e0, transparent);"></div>
-                            
-                            <div class="bg-white p-6 rounded-xl border border-gray-200">
-                                <p class="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Link Público</p>
-                                <a href="${publicLink}" target="_blank" class="block font-mono text-sm text-gray-900 hover:text-gray-600 underline break-all transition-colors">${publicLink}</a>
-                            </div>
-                            
-                            <div class="admin-highlight p-6 rounded-xl text-white">
-                                <div class="flex items-center gap-2 mb-3">
-                                    <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
-                                    </svg>
-                                    <p class="text-xs font-semibold uppercase tracking-widest text-amber-400">Link Administrativo</p>
-                                </div>
-                                <p class="text-xs text-gray-300 mb-3 font-light">Salve este link com segurança. Use-o para gerenciar pagamentos:</p>
-                                <a href="${adminLink}" target="_blank" class="block font-mono text-xs text-white hover:text-amber-400 underline break-all transition-colors">${adminLink}</a>
-                            </div>
 
-                            <div class="bg-gray-50 border border-gray-200 p-5 rounded-xl">
-                                <p class="text-sm text-gray-700 font-light leading-relaxed">
-                                    <strong class="font-semibold">Próximo passo:</strong> Compartilhe o link público com seus convidados e utilize o link administrativo para aprovar os pagamentos.
-                                </p>
+                    msg.innerHTML = `
+                        <h3 class="font-bold text-base mb-2">Plataforma Criada</h3>
+                        <div class="text-left space-y-3">
+                            <div>
+                                <p class="text-xs text-zinc-600 dark:text-zinc-400 uppercase">Link dos Convidados</p>
+                                <a href="${publicLink}" target="_blank" class="block font-mono text-emerald-600 dark:text-emerald-400 underline truncate hover:text-emerald-300 transition">${publicLink}</a>
+                            </div>
+                            <div>
+                                <p class="text-xs text-red-600 dark:text-red-400 uppercase font-bold">⚠️ Seu Link Admin (Privado)</p>
+                                <a href="${adminLink}" target="_blank" class="block font-mono text-zinc-700 dark:text-zinc-300 underline truncate text-xs hover:text-white transition">${adminLink}</a>
                             </div>
                         </div>
                     `;
                     e.target.reset();
-                    
-                    // Scroll to message
-                    msg.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 } else {
                     throw new Error(json.message);
                 }
             } catch (err) {
+                msg.className = `mt-6 p-4 rounded-lg text-center hidden text-sm transition-all duration-500 ${errorClasses}`;
                 msg.classList.remove('hidden');
-                msg.className = 'mt-8 p-6 rounded-xl bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-900';
-                msg.innerHTML = `
-                    <div class="flex items-center gap-3">
-                        <svg class="w-6 h-6 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        <div>
-                            <p class="font-semibold text-gray-900">Erro ao criar evento</p>
-                            <p class="text-sm text-gray-600 mt-1">${err.message || 'Tente novamente em alguns instantes.'}</p>
-                        </div>
-                    </div>
-                `;
+                msg.innerText = err.message || 'Erro ao criar.';
             } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<span class="relative z-10 flex items-center justify-center gap-3"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>Criar Evento</span>';
+                btn.disabled = false; btn.innerText = 'Lançar Plataforma';
+                btn.classList.remove('opacity-70', 'cursor-not-allowed');
             }
-        });
-
-        // Smooth input animations
-        document.querySelectorAll('.input-luxury').forEach(input => {
-            input.addEventListener('focus', function() {
-                this.parentElement.style.transform = 'scale(1.01)';
-            });
-            
-            input.addEventListener('blur', function() {
-                this.parentElement.style.transform = 'scale(1)';
-            });
         });
     </script>
 </body>
