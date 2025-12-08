@@ -4,46 +4,40 @@ from flask import Flask, render_template, request, jsonify
 import urllib3
 import re 
 
-# Desabilita alertas de SSL (importante para comunicação interna)
+# Desabilita alertas de SSL
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# =========================================================================
-# 1. CRIAÇÃO DA APP FLASK (O ERRO ESTAVA AQUI, ESSA LINHA É OBRIGATÓRIA)
-# =========================================================================
-app = Flask(__name__)
+# --- AQUI ESTÁ A CORREÇÃO DO ERRO ATUAL ---
+# O Gunicorn precisa encontrar esta variável 'app' para iniciar.
+app = Flask(__name__) 
 
 # =========================================================================
-# 2. CONFIGURAÇÕES E URLS
+# CONFIGURAÇÕES (HARDCODED PARA ELIMINAR O ERRO 401)
 # =========================================================================
 DIRECTUS_URL_EXTERNAL = "https://directus.leanttro.com"
 DIRECTUS_URL_INTERNAL = "http://213.199.56.207:8055" 
 DIRECTUS_URLS_TO_TRY = [DIRECTUS_URL_EXTERNAL, DIRECTUS_URL_INTERNAL]
-
 GLOBAL_SUCCESSFUL_URL = None
 
+# Credenciais travadas no código para o servidor não pegar a velha
+DOKPLOY_URL_FIXED = "http://213.199.56.207:3000"
+DOKPLOY_TOKEN_FIXED = "hDeLWmSnMyLtTDQlthigbwqWCFMhvIkjzqNPYIdoXUzmPFRQsjsqMOBhFRYixrvk"
+APP_ID_FIXED = "GYJuZwAcZAMb8s9v-S-"
+
 # =========================================================================
-# 3. AUTOMAÇÃO DOKPLOY (COM CREDENCIAIS FIXAS/HARDCODED)
+# AUTOMAÇÃO DOKPLOY
 # =========================================================================
 def create_dokploy_domain(subdomain):
-    # --- CHAVES FIXAS COPIADAS DOS SEUS PRINTS ---
-    # Isso ignora qualquer erro de variável de ambiente do servidor
-    DOKPLOY_URL = "http://213.199.56.207:3000"
-    DOKPLOY_TOKEN = "hDeLWmSnMyLtTDQlthigbwqWCFMhvIkjzqNPYIdoXUzmPFRQsjsqMOBhFRYixrvk"
-    APP_ID = "GYJuZwAcZAMb8s9v-S-"
-    # ---------------------------------------------
+    print(f"DEBUG: Iniciando criação de {subdomain} com credenciais fixas...")
     
-    if DOKPLOY_URL.endswith('/'): DOKPLOY_URL = DOKPLOY_URL[:-1]
-
-    full_domain = f"{subdomain}.leanttro.com"
-    print(f"DEBUG: Forçando criação de {full_domain} no App ID {APP_ID} via Hardcode")
-
     headers = {
-        "Authorization": f"Bearer {DOKPLOY_TOKEN}",
+        "Authorization": f"Bearer {DOKPLOY_TOKEN_FIXED}",
         "Content-Type": "application/json"
     }
     
+    full_domain = f"{subdomain}.leanttro.com"
     payload = {
-        "applicationId": APP_ID,
+        "applicationId": APP_ID_FIXED,
         "host": full_domain,
         "path": "/",
         "port": 5000,
@@ -53,28 +47,28 @@ def create_dokploy_domain(subdomain):
     
     try:
         response = requests.post(
-            f"{DOKPLOY_URL}/api/domain.create", 
+            f"{DOKPLOY_URL_FIXED}/api/domain.create", 
             json=payload, 
             headers=headers, 
             timeout=20
         )
         
         if response.status_code in [200, 201]:
-            print(f"✅ [SUCESSO] Domínio {full_domain} criado via API!")
+            print(f"✅ [SUCESSO] Domínio {full_domain} criado!")
             return True
         elif response.status_code == 409:
-             print(f"⚠️ [AVISO] Domínio já existe.")
+             print(f"⚠️ [AVISO] Domínio já existe no painel.")
              return True
         else:
-            print(f"⚠️ [ERRO API] Dokploy respondeu: {response.status_code} - {response.text}")
+            print(f"❌ [ERRO] Dokploy recusou: {response.status_code} - {response.text}")
             return False
             
     except Exception as e:
-        print(f"⛔ [ERRO FATAL] {str(e)}")
+        print(f"⛔ [ERRO FATAL] Conexão falhou: {str(e)}")
         return False
 
 # =========================================================================
-# 4. FUNÇÕES AUXILIARES
+# FUNÇÕES AUXILIARES
 # =========================================================================
 def clean_url(url):
     if url and url.endswith('/'): return url[:-1]
@@ -84,19 +78,17 @@ def fetch_collection_data(url_base, collection_name, tenant_id, params=None):
     if params is None: params = {}
     params["filter[tenant_id][_eq]"] = tenant_id
     try:
-        response = requests.get(f"{url_base}/items/{collection_name}", params=params, verify=False, timeout=5)
-        return response.json().get('data', []) if response.status_code == 200 else []
-    except:
-        return []
+        r = requests.get(f"{url_base}/items/{collection_name}", params=params, verify=False, timeout=5)
+        return r.json().get('data', []) if r.status_code == 200 else []
+    except: return []
 
 # =========================================================================
-# 5. ROTAS DO SITE
+# ROTAS
 # =========================================================================
 @app.route('/')
 def home():
     global GLOBAL_SUCCESSFUL_URL
     host = request.headers.get('Host', '')
-    
     if 'localhost' in host: subdomain = 'teste'
     else: subdomain = host.split('.')[0]
 
@@ -106,23 +98,22 @@ def home():
     successful_url = None
     response = None
 
-    for current_url in DIRECTUS_URLS_TO_TRY:
-        current_url = clean_url(current_url)
+    for url in DIRECTUS_URLS_TO_TRY:
+        url = clean_url(url)
         try:
-            url_tenants = f"{current_url}/items/tenants"
-            response = requests.get(url_tenants, params={"filter[subdomain][_eq]": subdomain}, verify=False, timeout=5)
-            if response.status_code == 200:
-                successful_url = current_url
-                GLOBAL_SUCCESSFUL_URL = current_url
+            r = requests.get(f"{url}/items/tenants", params={"filter[subdomain][_eq]": subdomain}, verify=False, timeout=5)
+            if r.status_code == 200:
+                successful_url = url
+                GLOBAL_SUCCESSFUL_URL = url
+                response = r
                 break
         except: continue
             
-    if not successful_url:
-        return "<h1>Erro: Banco de Dados Indisponível</h1>", 500
+    if not successful_url: return "<h1>Erro: Banco de Dados Indisponível</h1>", 500
 
     data = response.json()
     if not data.get('data'):
-         return f"<h1>Evento não encontrado (404)</h1><p>{subdomain}.leanttro.com não existe.</p>", 404
+         return f"<h1>Evento não encontrado (404)</h1>", 404
 
     tenant = data['data'][0]
     
@@ -130,27 +121,22 @@ def home():
     sections = fetch_collection_data(successful_url, "sections", tenant['id'])
     guests = fetch_collection_data(successful_url, "vaquinha_guests", tenant['id'], params={"sort": "-created_at"})
     
-    vaquinha_settings_list = fetch_collection_data(successful_url, "vaquinha_settings", tenant['id'])
-    vaquinha_settings = vaquinha_settings_list[0] if vaquinha_settings_list else {}
+    settings_list = fetch_collection_data(successful_url, "vaquinha_settings", tenant['id'])
+    settings = settings_list[0] if settings_list else {}
     
     return render_template(
         f"{tenant.get('template_name', 'home')}.html",
-        tenant=tenant,
-        products=products,
-        sections=sections,
+        tenant=tenant, products=products, sections=sections,
         guests_confirmed=[g for g in guests if g.get('status') == 'CONFIRMED'],
-        guests_all=guests,
-        vaquinha_settings=vaquinha_settings,
+        guests_all=guests, vaquinha_settings=settings,
         directus_external_url=DIRECTUS_URL_EXTERNAL
     )
 
 @app.route('/api/create_tenant', methods=['POST'])
 def create_tenant():
-    # Pega o token ADMIN das variáveis (esse costuma funcionar, senão pode fixar tbm)
+    # Usa a variável de ambiente para o Admin Token do Directus
     ADMIN_TOKEN = os.getenv("DIRECTUS_ADMIN_TOKEN")
-    
-    if not ADMIN_TOKEN:
-        return jsonify({"status": "error", "message": "Token ADMIN ausente"}), 500
+    if not ADMIN_TOKEN: return jsonify({"status": "error", "message": "Token ADMIN Server Error"}), 500
 
     api_url = GLOBAL_SUCCESSFUL_URL or clean_url(DIRECTUS_URL_EXTERNAL)
     
@@ -172,7 +158,7 @@ def create_tenant():
         }, verify=False)
         
         if tenant_resp.status_code != 200:
-            return jsonify({"status": "error", "message": "Nome indisponível ou erro DB"}), 400
+            return jsonify({"status": "error", "message": "Nome indisponível."}), 400
 
         new_id = tenant_resp.json()['data']['id']
         
@@ -193,9 +179,6 @@ def create_tenant():
             "url": f"https://{sub}.leanttro.com",
             "admin_token": f"{sub.upper()}_TOKEN_MASTER"
         }), 200
-
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
