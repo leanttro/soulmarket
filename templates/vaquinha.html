@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-br" class="dark">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; transition: background-color 0.3s; }
+        body { font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
         :root {
             /* Mantendo a lógica do cliente, mas ajustando a aplicação */
             --primary: {{ tenant.primary_color | default('#111827') }}; /* Padrão agora é um Dark quase preto se não houver cor */
@@ -40,46 +40,7 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
     <script>
-        // --- FUNÇÕES GLOBAIS DE TEMA ---
-        function applyTheme(theme) {
-            const html = document.documentElement;
-            const icon = document.getElementById('theme-icon');
-            
-            if (theme === 'dark') {
-                html.classList.add('dark');
-                localStorage.theme = 'dark';
-                if (icon) {
-                    // Ícone da Lua (modo escuro ativo)
-                    icon.innerHTML = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>';
-                }
-            } else {
-                html.classList.remove('dark');
-                localStorage.theme = 'light';
-                if (icon) {
-                    // Ícone do Sol (modo claro ativo)
-                    icon.innerHTML = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707"></path></svg>';
-                }
-            }
-        }
-
-        function toggleTheme() {
-            const currentTheme = localStorage.theme === 'dark' ? 'light' : 'dark';
-            applyTheme(currentTheme);
-        }
-
-        // Inicialização do tema ao carregar a página
-        if (localStorage.theme === 'light') {
-            applyTheme('light');
-        } else {
-            // Padrão para Dark se não houver preferência
-            applyTheme('dark');
-        }
-        window.toggleTheme = toggleTheme;
-        // --- FIM FUNÇÕES GLOBAIS DE TEMA ---
-
-        // --- LÓGICA DE APROVAÇÃO (MANTIDA INTACTA) ---
         async function approveGuest(guestId, button) {
-            // Note: Alterei confirm() e alert() para usar console.error/log pois alert() é desaconselhado.
             if (!confirm("Confirmar aprovação do pagamento?")) return;
 
             const originalText = button.innerText;
@@ -96,26 +57,26 @@
                 const result = await response.json();
 
                 if (result.status === 'success') {
-                    console.log('Convidado aprovado!');
+                    // Visual update
                     const row = button.closest('tr');
-                    row.classList.add('bg-green-50', 'dark:bg-green-900/50');
+                    row.classList.add('bg-green-50');
                     const statusCell = row.querySelector('.status-cell');
-                    statusCell.innerHTML = '<span class="px-2 py-0.5 inline-flex text-xs font-medium rounded bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">Verificado</span>';
+                    statusCell.innerHTML = '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Verificado</span>';
                     button.remove(); 
                 } else {
-                    console.error('Erro:', result.message);
+                    alert('Erro: ' + result.message);
                     button.disabled = false;
                     button.innerText = originalText;
                 }
             } catch (error) {
-                console.error('Erro de conexão:', error);
+                alert('Erro de conexão.');
                 button.disabled = false;
                 button.innerText = originalText;
             }
         }
     </script>
 </head>
-<body class="bg-zinc-50 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-100">
+<body class="bg-zinc-50 text-zinc-800">
 
     {% set confirmed_count = guests_confirmed | length %}
     {% set guest_limit = tenant.guest_limit | default(20) %}
@@ -128,27 +89,16 @@
     {% set asset_base_url = directus_external_url | default('https://directus.leanttro.com') %}
 
 
-    <!-- Minimal Header -->
-    <header class="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-700 sticky top-0 z-50">
+    <header class="bg-white/80 backdrop-blur-md border-b border-zinc-200 sticky top-0 z-50">
         <div class="container mx-auto px-6 py-4 flex justify-between items-center max-w-5xl">
             <div class="flex items-center gap-3">
                 <div class="h-3 w-3 rounded-full bg-primary animate-pulse" style="background-color: var(--primary);"></div>
-                <h1 class="text-sm font-semibold tracking-wide uppercase text-zinc-500 dark:text-zinc-400">
-                    Evento <span class="text-zinc-900 dark:text-white">{{ tenant.company_name }}</span>
+                <h1 class="text-sm font-semibold tracking-wide uppercase text-zinc-500">
+                    Evento <span class="text-zinc-900">{{ tenant.company_name }}</span>
                 </h1>
             </div>
-            <div class="flex items-center space-x-4">
-                 <!-- Botão de Tema -->
-                <button id="theme-toggle" onclick="toggleTheme()" class="p-2 rounded-full text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors duration-300">
-                    <span id="theme-icon">
-                         <!-- Ícone Padrão (Lua) - Atualizado via JS -->
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
-                    </span>
-                </button>
-
-                <div class="text-xs font-medium px-3 py-1 bg-zinc-100 dark:bg-zinc-700 rounded-full text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-600">
-                    {{ confirmed_count }} / {{ guest_limit }} Confirmados
-                </div>
+            <div class="text-xs font-medium px-3 py-1 bg-zinc-100 rounded-full text-zinc-600 border border-zinc-200">
+                {{ confirmed_count }} / {{ guest_limit }} Confirmados
             </div>
         </div>
     </header>
@@ -156,17 +106,17 @@
     <main class="container mx-auto px-4 py-12 max-w-5xl fade-in">
         
         <div class="text-center mb-12">
-            <h2 class="text-4xl md:text-5xl font-bold text-zinc-900 dark:text-white mb-4 tracking-tight">
+            <h2 class="text-4xl md:text-5xl font-bold text-zinc-900 mb-4 tracking-tight">
                 Confirme sua presença.
             </h2>
-            <p class="text-zinc-500 dark:text-zinc-400 text-lg md:text-xl font-light max-w-2xl mx-auto">
-                Garanta seu lugar na lista. Realize o PIX para <strong class="text-zinc-800 dark:text-white">{{ tenant.pix_owner_name | default('Organizador') }}</strong> e anexe o comprovante.
+            <p class="text-zinc-500 text-lg md:text-xl font-light max-w-2xl mx-auto">
+                Garanta seu lugar na lista. Realize o PIX para <strong class="text-zinc-800">{{ tenant.pix_owner_name | default('Organizador') }}</strong> e anexe o comprovante.
             </p>
         </div>
 
         {# STATUS DO PLANO #}
         {% if is_limit_reached %}
-            <div class="max-w-3xl mx-auto mb-10 bg-red-50 dark:bg-red-900/30 border border-red-100 dark:border-red-800 text-red-800 dark:text-red-300 px-6 py-4 rounded-xl flex items-center gap-3">
+            <div class="max-w-3xl mx-auto mb-10 bg-red-50 border border-red-100 text-red-800 px-6 py-4 rounded-xl flex items-center gap-3">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
                 <div>
                     <span class="font-bold block">Vendas encerradas.</span>
@@ -179,23 +129,23 @@
             
             {# COLUNA ESQUERDA: PIX INFO #}
             <div class="md:col-span-5 space-y-6">
-                <div class="bg-white dark:bg-zinc-800 p-8 rounded-2xl shadow-[0_4px_20px_-10px_rgba(0,0,0,0.1)] dark:shadow-none border border-zinc-100 dark:border-zinc-700">
+                <div class="bg-white p-8 rounded-2xl shadow-[0_4px_20px_-10px_rgba(0,0,0,0.1)] border border-zinc-100">
                     <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-widest mb-6">Dados Bancários</h3>
                     
                     <div class="space-y-4">
                         <div>
                             <p class="text-xs text-zinc-400 mb-1">Chave Pix</p>
-                            <div class="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-700 rounded-lg border border-zinc-200 dark:border-zinc-600 group relative cursor-pointer hover:border-zinc-300 dark:hover:border-zinc-500 transition" onclick="navigator.clipboard.writeText('{{ tenant.pix_key }}'); console.log('Chave copiada!')">
-                                <code class="text-sm font-mono text-zinc-800 dark:text-zinc-200 truncate pr-4">
+                            <div class="flex items-center justify-between p-4 bg-zinc-50 rounded-lg border border-zinc-200 group relative cursor-pointer hover:border-zinc-300 transition" onclick="navigator.clipboard.writeText('{{ tenant.pix_key }}'); alert('Chave copiada!')">
+                                <code class="text-sm font-mono text-zinc-800 truncate pr-4">
                                     {{ tenant.pix_key | default('CHAVE-NAO-DEFINIDA') }}
                                 </code>
-                                <svg class="w-4 h-4 text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                                <svg class="w-4 h-4 text-zinc-400 group-hover:text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
                             </div>
                         </div>
                         
                         <div>
                             <p class="text-xs text-zinc-400 mb-1">Beneficiário</p>
-                            <p class="text-base font-medium text-zinc-800 dark:text-white">{{ tenant.pix_owner_name | default(tenant.company_name) }}</p>
+                            <p class="text-base font-medium text-zinc-800">{{ tenant.pix_owner_name | default(tenant.company_name) }}</p>
                         </div>
                     </div>
                 </div>
@@ -205,7 +155,7 @@
                     {% if guests_confirmed %}
                         <div class="flex flex-wrap gap-2">
                             {% for guest in guests_confirmed %}
-                                <div class="inline-flex items-center px-3 py-1.5 rounded-full bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-xs font-medium text-zinc-600 dark:text-zinc-300 shadow-sm">
+                                <div class="inline-flex items-center px-3 py-1.5 rounded-full bg-white border border-zinc-200 text-xs font-medium text-zinc-600 shadow-sm">
                                     <div class="w-1.5 h-1.5 bg-green-500 rounded-full mr-2"></div>
                                     {{ guest.name.split()[0] }}
                                 </div>
@@ -220,7 +170,7 @@
 
             {# COLUNA DIREITA: FORMULÁRIO #}
             <div class="md:col-span-7">
-                <div class="bg-white dark:bg-zinc-800 p-8 md:p-10 rounded-2xl shadow-xl shadow-zinc-200/50 dark:shadow-zinc-950/50 border border-zinc-100 dark:border-zinc-700 relative overflow-hidden">
+                <div class="bg-white p-8 md:p-10 rounded-2xl shadow-xl shadow-zinc-200/50 border border-zinc-100 relative overflow-hidden">
                     
                     {% if is_limit_reached %}
                         <div class="h-full flex items-center justify-center text-zinc-400">
@@ -231,23 +181,23 @@
                             <input type="hidden" name="origin_slug" value="{{ current_slug }}">
 
                             <div class="space-y-1">
-                                <label class="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase" for="name">Nome Completo</label>
-                                <input type="text" id="name" name="name" class="w-full p-4 bg-zinc-50 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg focus:bg-white dark:focus:bg-zinc-800 focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white focus:border-transparent outline-none transition-all placeholder-zinc-400 dark:placeholder-zinc-500 text-sm" placeholder="Como no seu documento" required>
+                                <label class="block text-xs font-semibold text-zinc-500 uppercase" for="name">Nome Completo</label>
+                                <input type="text" id="name" name="name" class="w-full p-4 bg-zinc-50 border border-zinc-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-zinc-900 focus:border-transparent outline-none transition-all placeholder-zinc-400 text-sm" placeholder="Como no seu documento" required>
                             </div>
                             
                             <div class="space-y-1">
-                                <label class="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase" for="email">E-mail Corporativo ou Pessoal</label>
-                                <input type="email" id="email" name="email" class="w-full p-4 bg-zinc-50 dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 rounded-lg focus:bg-white dark:focus:bg-zinc-800 focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white focus:border-transparent outline-none transition-all placeholder-zinc-400 dark:placeholder-zinc-500 text-sm" placeholder="seu@email.com" required>
+                                <label class="block text-xs font-semibold text-zinc-500 uppercase" for="email">E-mail Corporativo ou Pessoal</label>
+                                <input type="email" id="email" name="email" class="w-full p-4 bg-zinc-50 border border-zinc-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-zinc-900 focus:border-transparent outline-none transition-all placeholder-zinc-400 text-sm" placeholder="seu@email.com" required>
                             </div>
                             
                             <div class="space-y-1">
-                                <label class="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase" for="proof">Comprovante</label>
+                                <label class="block text-xs font-semibold text-zinc-500 uppercase" for="proof">Comprovante</label>
                                 <div class="relative">
-                                    <input type="file" id="proof" name="proof" accept="image/*" class="w-full p-3 border border-zinc-200 dark:border-zinc-600 rounded-lg bg-zinc-50 dark:bg-zinc-700 text-sm text-zinc-500 dark:text-zinc-300 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-zinc-900 dark:file:bg-zinc-900 file:text-white hover:file:bg-zinc-700 dark:hover:file:bg-zinc-700 cursor-pointer transition" required>
+                                    <input type="file" id="proof" name="proof" accept="image/*" class="w-full p-3 border border-zinc-200 rounded-lg bg-zinc-50 text-sm text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-zinc-900 file:text-white hover:file:bg-zinc-700 cursor-pointer transition" required>
                                 </div>
                             </div>
                             
-                            <button type="submit" class="w-full btn-primary py-4 rounded-xl font-semibold text-base shadow-lg shadow-zinc-300 dark:shadow-zinc-950/50 hover:shadow-xl transition-all transform hover:-translate-y-0.5 mt-4">
+                            <button type="submit" class="w-full btn-primary py-4 rounded-xl font-semibold text-base shadow-lg shadow-zinc-300 hover:shadow-xl transition-all transform hover:-translate-y-0.5 mt-4">
                                 Confirmar Presença
                             </button>
                         </form>
@@ -258,7 +208,7 @@
 
         {# --- ÁREA RESTRITA DO ORGANIZADOR --- #}
         {% if is_organizer_view %}
-            <div class="mt-24 border-t border-zinc-200 dark:border-zinc-700 pt-12">
+            <div class="mt-24 border-t border-zinc-200 pt-12">
                 <div class="bg-zinc-900 text-white p-6 md:p-8 rounded-2xl shadow-2xl relative overflow-hidden">
                     <div class="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
                         <svg class="w-32 h-32" fill="currentColor" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
@@ -275,7 +225,6 @@
                         </div>
                     </div>
 
-                    <!-- Stats Grid -->
                     <div class="grid grid-cols-3 gap-4 mb-8">
                         <div class="bg-zinc-800/50 p-4 rounded-xl backdrop-blur-sm border border-zinc-700">
                             <span class="block text-2xl font-bold text-white">{{ confirmed_count }}</span>
@@ -291,10 +240,9 @@
                         </div>
                     </div>
 
-                    <!-- Table -->
-                    <div class="bg-white dark:bg-zinc-700 rounded-xl overflow-hidden text-zinc-800 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700">
-                        <table class="min-w-full divide-y divide-zinc-100 dark:divide-zinc-600">
-                            <thead class="bg-zinc-50 dark:bg-zinc-800">
+                    <div class="bg-white rounded-xl overflow-hidden text-zinc-800">
+                        <table class="min-w-full divide-y divide-zinc-100">
+                            <thead class="bg-zinc-50">
                                 <tr>
                                     <th class="px-6 py-4 text-left text-xs font-semibold text-zinc-400 uppercase tracking-wider">Participante</th>
                                     <th class="px-6 py-4 text-left text-xs font-semibold text-zinc-400 uppercase tracking-wider">Status</th>
@@ -302,23 +250,23 @@
                                     <th class="px-6 py-4 text-right text-xs font-semibold text-zinc-400 uppercase tracking-wider">Aprovação</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-zinc-50 dark:divide-zinc-600">
+                            <tbody class="divide-y divide-zinc-50">
                                 {% for guest in guests_all %}
-                                <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-600 transition-colors">
+                                <tr class="hover:bg-zinc-50 transition-colors">
                                     <td class="px-6 py-4">
-                                        <div class="text-sm font-medium text-zinc-900 dark:text-white">{{ guest.name }}</div>
-                                        <div class="text-xs text-zinc-400 dark:text-zinc-300">{{ guest.email }}</div>
+                                        <div class="text-sm font-medium text-zinc-900">{{ guest.name }}</div>
+                                        <div class="text-xs text-zinc-400">{{ guest.email }}</div>
                                     </td>
                                     <td class="px-6 py-4 status-cell">
                                         {% if guest.status == 'CONFIRMED' %}
-                                            <span class="px-2 py-0.5 inline-flex text-xs font-medium rounded bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">Pago</span>
+                                            <span class="px-2 py-0.5 inline-flex text-xs font-medium rounded bg-green-100 text-green-800">Pago</span>
                                         {% else %}
-                                            <span class="px-2 py-0.5 inline-flex text-xs font-medium rounded bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">Análise</span>
+                                            <span class="px-2 py-0.5 inline-flex text-xs font-medium rounded bg-yellow-100 text-yellow-800">Análise</span>
                                         {% endif %}
                                     </td>
                                     <td class="px-6 py-4 text-sm">
                                         {% if guest.payment_proof_url %}
-                                            <a href="{{ asset_base_url }}/assets/{{ guest.payment_proof_url }}" target="_blank" class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 text-xs font-medium underline decoration-blue-200 dark:decoration-blue-700 underline-offset-2">
+                                            <a href="{{ asset_base_url }}/assets/{{ guest.payment_proof_url }}" target="_blank" class="text-blue-600 hover:text-blue-800 text-xs font-medium underline decoration-blue-200 underline-offset-2">
                                                 Abrir Comprovante
                                             </a>
                                         {% else %}
@@ -351,8 +299,8 @@
 
     </main>
 
-    <footer class="text-center py-10 mt-10 border-t border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">
-        <p class="text-xs text-zinc-400">Powered by <strong class="text-zinc-900 dark:text-white">Leanttro</strong></p>
+    <footer class="text-center py-10 mt-10 border-t border-zinc-200 bg-white">
+        <p class="text-xs text-zinc-400">Powered by <strong class="text-zinc-900">Leanttro</strong></p>
     </footer>
 
 </body>
