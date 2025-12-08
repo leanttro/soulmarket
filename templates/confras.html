@@ -192,7 +192,9 @@
                 <!-- Link Personalizado -->
                 <div class="slide-in" style="animation-delay: 0.4s;">
                     <label class="label-luxury block mb-3">Link Personalizado</label>
-                    <div class="flex rounded-lg overflow-hidden border-2 border-gray-200 focus-within:border-gray-900 transition-all">
+                    
+                    <!-- Desktop version -->
+                    <div class="hidden md:flex rounded-lg overflow-hidden border-2 border-gray-200 focus-within:border-gray-900 transition-all">
                         <span class="prefix-badge inline-flex items-center px-5 text-gray-600 text-sm font-medium">
                             confras.leanttro.com/festa/
                         </span>
@@ -202,6 +204,20 @@
                             required 
                             placeholder="meu-evento" 
                             class="flex-1 p-4 focus:outline-none text-base font-medium"
+                        >
+                    </div>
+
+                    <!-- Mobile version -->
+                    <div class="md:hidden">
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-2">
+                            <p class="text-xs text-gray-500 font-medium">confras.leanttro.com/festa/</p>
+                        </div>
+                        <input 
+                            type="text" 
+                            id="subdomain-mobile" 
+                            required 
+                            placeholder="meu-evento" 
+                            class="input-luxury w-full p-4 rounded-lg text-base font-medium"
                         >
                     </div>
                 </div>
@@ -283,7 +299,7 @@
             
             const data = {
                 company_name: document.getElementById('company_name').value,
-                subdomain: document.getElementById('subdomain').value,
+                subdomain: document.getElementById('subdomain')?.value || document.getElementById('subdomain-mobile').value,
                 email: document.getElementById('email').value,
                 pix_key: document.getElementById('pix_key').value,
                 password: document.getElementById('password').value
