@@ -3,304 +3,255 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Confraternização | {{ tenant.company_name }}</title>
+    <title>Confraternização de {{ tenant.company_name }} | Divisão de Valores GRÁTIS com Leanttro</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
+        /* Define cores dinâmicas */
         :root {
-            /* Mantendo a lógica do cliente, mas ajustando a aplicação */
-            --primary: {{ tenant.primary_color | default('#111827') }}; /* Padrão agora é um Dark quase preto se não houver cor */
-            --secondary: {{ tenant.secondary_color | default('#6B7280') }}; 
+            --primary: {{ tenant.primary_color | default('#22C55E') }};
+            --secondary: {{ tenant.secondary_color | default('#F97316') }}; 
         }
+        .bg-primary { background-color: var(--primary); }
         .text-primary { color: var(--primary); }
-        
-        /* Botão Apple Style */
-        .btn-primary { 
-            background-color: var(--primary); 
-            color: white; 
-            transition: all 0.2s ease;
-        }
-        .btn-primary:hover { 
-            opacity: 0.9; 
-            transform: scale(1.01);
-        }
-
-        .btn-approve { 
-            background-color: #000; 
-            color: white; 
-            font-size: 0.75rem;
-            padding: 6px 12px;
-            border-radius: 6px;
-        }
-        .btn-approve:hover { background-color: #333; }
-        
-        /* Smooth Fade In */
-        .fade-in { animation: fadeIn 0.6s ease-out forwards; opacity: 0; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .border-primary { border-color: var(--primary); }
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-approve { background-color: #3B82F6; color: white; }
+        .btn-approve:hover { background-color: #2563EB; }
     </style>
     <script>
+        // Script para lidar com a aprovação AJAX
         async function approveGuest(guestId, button) {
-            if (!confirm("Confirmar aprovação do pagamento?")) return;
+            if (!confirm("Tem certeza que deseja APROVAR este comprovante?")) {
+                return;
+            }
 
-            const originalText = button.innerText;
             button.disabled = true;
-            button.innerText = '...';
+            button.innerText = 'Aprovando...';
 
             try {
                 const response = await fetch('/api/approve_guest', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({ guest_id: guestId })
                 });
 
                 const result = await response.json();
 
                 if (result.status === 'success') {
-                    // Visual update
+                    alert('Convidado aprovado! Recarregue a página para atualizar os contadores.');
+                    // Esconde a linha para simular a aprovação e pedir refresh
                     const row = button.closest('tr');
-                    row.classList.add('bg-green-50');
-                    const statusCell = row.querySelector('.status-cell');
-                    statusCell.innerHTML = '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Verificado</span>';
-                    button.remove(); 
+                    row.style.backgroundColor = '#d1fae5'; // Fundo verde claro
+                    row.querySelector('.status-cell').innerHTML = '<span class="inline-block px-2 py-1 text-xs font-semibold rounded bg-green-100 text-green-800">CONFIRMED (Recarregar)</span>';
+                    button.remove(); // Remove o botão de aprovar
                 } else {
-                    alert('Erro: ' + result.message);
+                    alert('Erro ao aprovar: ' + result.message);
                     button.disabled = false;
-                    button.innerText = originalText;
+                    button.innerText = 'Aprovar';
                 }
+
             } catch (error) {
-                alert('Erro de conexão.');
+                alert('Erro de rede: Não foi possível conectar ao servidor.');
                 button.disabled = false;
-                button.innerText = originalText;
+                button.innerText = 'Aprovar';
             }
         }
     </script>
 </head>
-<body class="bg-zinc-50 text-zinc-800">
+<body class="bg-gray-50 font-sans">
 
     {% set confirmed_count = guests_confirmed | length %}
     {% set guest_limit = tenant.guest_limit | default(20) %}
     {% set is_limit_reached = confirmed_count >= guest_limit %}
     
-    {# Lógica de Admin #}
     {% set token_secreto = tenant.admin_token | default('master') %}
     {% set is_organizer_view = request.args.get('admin') == token_secreto %}
     
     {% set asset_base_url = directus_external_url | default('https://directus.leanttro.com') %}
 
 
-    <header class="bg-white/80 backdrop-blur-md border-b border-zinc-200 sticky top-0 z-50">
-        <div class="container mx-auto px-6 py-4 flex justify-between items-center max-w-5xl">
-            <div class="flex items-center gap-3">
-                <div class="h-3 w-3 rounded-full bg-primary animate-pulse" style="background-color: var(--primary);"></div>
-                <h1 class="text-sm font-semibold tracking-wide uppercase text-zinc-500">
-                    Evento <span class="text-zinc-900">{{ tenant.company_name }}</span>
-                </h1>
-            </div>
-            <div class="text-xs font-medium px-3 py-1 bg-zinc-100 rounded-full text-zinc-600 border border-zinc-200">
-                {{ confirmed_count }} / {{ guest_limit }} Confirmados
-            </div>
+    <header class="bg-white shadow-md">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-gray-800">Confraternização de <span class="text-primary">{{ tenant.company_name }}</span></h1>
+            <span class="text-lg font-semibold text-gray-600">Limite: {{ confirmed_count }} / {{ guest_limit }}</span>
         </div>
     </header>
 
-    <main class="container mx-auto px-4 py-12 max-w-5xl fade-in">
-        
-        <div class="text-center mb-12">
-            <h2 class="text-4xl md:text-5xl font-bold text-zinc-900 mb-4 tracking-tight">
-                Confirme sua presença.
-            </h2>
-            <p class="text-zinc-500 text-lg md:text-xl font-light max-w-2xl mx-auto">
-                Garanta seu lugar na lista. Realize o PIX para <strong class="text-zinc-800">{{ tenant.pix_owner_name | default('Organizador') }}</strong> e anexe o comprovante.
-            </p>
-        </div>
-
-        {# STATUS DO PLANO #}
-        {% if is_limit_reached %}
-            <div class="max-w-3xl mx-auto mb-10 bg-red-50 border border-red-100 text-red-800 px-6 py-4 rounded-xl flex items-center gap-3">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                <div>
-                    <span class="font-bold block">Vendas encerradas.</span>
-                    <span class="text-sm opacity-90">O limite de convidados foi atingido.</span>
-                </div>
-            </div>
-        {% endif %}
-
-        <div class="grid md:grid-cols-12 gap-8 max-w-5xl mx-auto">
+    <main class="container mx-auto px-4 py-16 max-w-4xl">
+        <div class="bg-white p-8 md:p-12 rounded-xl shadow-2xl border-t-4 border-primary">
             
-            {# COLUNA ESQUERDA: PIX INFO #}
-            <div class="md:col-span-5 space-y-6">
-                <div class="bg-white p-8 rounded-2xl shadow-[0_4px_20px_-10px_rgba(0,0,0,0.1)] border border-zinc-100">
-                    <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-widest mb-6">Dados Bancários</h3>
-                    
-                    <div class="space-y-4">
-                        <div>
-                            <p class="text-xs text-zinc-400 mb-1">Chave Pix</p>
-                            <div class="flex items-center justify-between p-4 bg-zinc-50 rounded-lg border border-zinc-200 group relative cursor-pointer hover:border-zinc-300 transition" onclick="navigator.clipboard.writeText('{{ tenant.pix_key }}'); alert('Chave copiada!')">
-                                <code class="text-sm font-mono text-zinc-800 truncate pr-4">
-                                    {{ tenant.pix_key | default('CHAVE-NAO-DEFINIDA') }}
-                                </code>
-                                <svg class="w-4 h-4 text-zinc-400 group-hover:text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-                            </div>
-                        </div>
-                        
-                        <div>
-                            <p class="text-xs text-zinc-400 mb-1">Beneficiário</p>
-                            <p class="text-base font-medium text-zinc-800">{{ tenant.pix_owner_name | default(tenant.company_name) }}</p>
-                        </div>
+            <h2 class="text-3xl font-extrabold text-gray-900 mb-6">
+                Contribua para a Confraternização!
+            </h2>
+            <p class="text-gray-600 mb-10">
+                O organizador {{ tenant.pix_owner_name | default('sem nome definido') }} está gerenciando os pagamentos. Para confirmar sua presença, faça o PIX e envie o comprovante abaixo.
+            </p>
+
+            {# --- LISTA DE NOMES CONFIRMADOS (NOVA SEÇÃO) --- #}
+            <div class="mb-10 p-6 border rounded-lg bg-green-50">
+                <h3 class="text-xl font-bold text-green-700 mb-3">✅ Pessoas já Confirmadas ({{ confirmed_count }})</h3>
+                <p class="text-gray-600 text-sm mb-4">Veja quem já teve o comprovante aprovado pelo organizador:</p>
+                
+                {% if guests_confirmed %}
+                    <div class="flex flex-wrap gap-2">
+                        {% for guest in guests_confirmed %}
+                            <span class="bg-green-600 text-white text-sm font-semibold px-3 py-1 rounded-full shadow-md">
+                                {{ guest.name | default('Convidado Anônimo') }}
+                            </span>
+                        {% endfor %}
                     </div>
-                </div>
-
-                <div class="p-6">
-                    <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-widest mb-4">Já Confirmados</h3>
-                    {% if guests_confirmed %}
-                        <div class="flex flex-wrap gap-2">
-                            {% for guest in guests_confirmed %}
-                                <div class="inline-flex items-center px-3 py-1.5 rounded-full bg-white border border-zinc-200 text-xs font-medium text-zinc-600 shadow-sm">
-                                    <div class="w-1.5 h-1.5 bg-green-500 rounded-full mr-2"></div>
-                                    {{ guest.name.split()[0] }}
-                                </div>
-                            {% endfor %}
-                        </div>
-                        <p class="text-xs text-zinc-400 mt-3 text-center">+ Você?</p>
-                    {% else %}
-                        <p class="text-sm text-zinc-400 italic">Seja o primeiro a confirmar.</p>
-                    {% endif %}
-                </div>
+                {% else %}
+                    <p class="text-gray-500">Ninguém foi aprovado ainda. Seja o primeiro!</p>
+                {% endif %}
             </div>
+            {# --- FIM DA LISTA DE NOMES CONFIRMADOS --- #}
 
-            {# COLUNA DIREITA: FORMULÁRIO #}
-            <div class="md:col-span-7">
-                <div class="bg-white p-8 md:p-10 rounded-2xl shadow-xl shadow-zinc-200/50 border border-zinc-100 relative overflow-hidden">
+
+            {# --- STATUS DO PLANO FREEMIUM --- #}
+            {% if is_limit_reached %}
+                <div class="p-4 mb-8 bg-red-100 border-l-4 border-red-500 text-red-700">
+                    <p class="font-bold">LIMITE ATINGIDO!</p>
+                    <p>O limite de {{ guest_limit }} convidados foi alcançado. O organizador deve fazer o upgrade do plano para aceitar mais confirmações.</p>
+                </div>
+            {% elif tenant.plan_type == 'free' and guest_limit == 20 %}
+                <div class="p-4 mb-8 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700">
+                    <p class="font-bold">PLANO GRÁTIS ATIVO!</p>
+                    <p>Limite de até 20 convidados para o plano FREE. Considere o upgrade para expandir o limite!</p>
+                </div>
+            {% endif %}
+
+            {# --- CHAVE PIX E FORMULÁRIO --- #}
+            <div class="grid md:grid-cols-2 gap-10">
+                
+                {# BLOCO DE PIX #}
+                <div class="p-6 border rounded-lg shadow-inner bg-primary/5">
+                    <h3 class="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <span>PIX para Confirmação</span>
+                    </h3>
+                    
+                    <p class="text-gray-600 mb-2">Chave PIX ({{ tenant.pix_owner_name | default('Organizador') }}):</p>
+                    <div class="p-4 bg-white border-2 border-primary rounded-lg text-lg font-mono break-all mb-4">
+                        {{ tenant.pix_key | default('CHAVE PIX AINDA NÃO CADASTRADA') }}
+                    </div>
+                    
+                    <p class="font-semibold text-gray-700">
+                        Valor Sugerido: R$ 50,00 (Exemplo)
+                    </p>
+                </div>
+
+                {# FORMULÁRIO DE ENVIO DE COMPROVANTE #}
+                <div class="p-6 bg-gray-50 rounded-lg shadow-lg">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Enviar Comprovante</h3>
                     
                     {% if is_limit_reached %}
-                        <div class="h-full flex items-center justify-center text-zinc-400">
-                            <p class="font-medium">Inscrições Encerradas</p>
-                        </div>
+                        <p class="text-red-500 font-semibold">Não é possível confirmar. Limite de convidados excedido.</p>
                     {% else %}
-                        <form action="/api/confirm_vaquinha" method="POST" enctype="multipart/form-data" class="space-y-6">
-                            <input type="hidden" name="origin_slug" value="{{ current_slug }}">
-
-                            <div class="space-y-1">
-                                <label class="block text-xs font-semibold text-zinc-500 uppercase" for="name">Nome Completo</label>
-                                <input type="text" id="name" name="name" class="w-full p-4 bg-zinc-50 border border-zinc-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-zinc-900 focus:border-transparent outline-none transition-all placeholder-zinc-400 text-sm" placeholder="Como no seu documento" required>
+                        <form action="/api/confirm_vaquinha" method="POST" enctype="multipart/form-data">
+                            
+                            <div class="mb-4">
+                                <label class="block text-gray-700 font-semibold mb-2" for="name">Seu Nome:</label>
+                                <input type="text" id="name" name="name" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary" required>
                             </div>
                             
-                            <div class="space-y-1">
-                                <label class="block text-xs font-semibold text-zinc-500 uppercase" for="email">E-mail Corporativo ou Pessoal</label>
-                                <input type="email" id="email" name="email" class="w-full p-4 bg-zinc-50 border border-zinc-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-zinc-900 focus:border-transparent outline-none transition-all placeholder-zinc-400 text-sm" placeholder="seu@email.com" required>
+                            <div class="mb-4">
+                                <label class="block text-gray-700 font-semibold mb-2" for="email">Seu E-mail:</label>
+                                <input type="email" id="email" name="email" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary" required>
+                            </div>
+                            <div class="mb-6">
+                                <label class="block text-gray-700 font-semibold mb-2" for="proof">Upload do Comprovante (Imagem):</label>
+                                <input type="file" id="proof" name="proof" accept="image/*" class="w-full p-3 border border-gray-300 rounded-lg bg-white" required>
                             </div>
                             
-                            <div class="space-y-1">
-                                <label class="block text-xs font-semibold text-zinc-500 uppercase" for="proof">Comprovante</label>
-                                <div class="relative">
-                                    <input type="file" id="proof" name="proof" accept="image/*" class="w-full p-3 border border-zinc-200 rounded-lg bg-zinc-50 text-sm text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-zinc-900 file:text-white hover:file:bg-zinc-700 cursor-pointer transition" required>
-                                </div>
-                            </div>
-                            
-                            <button type="submit" class="w-full btn-primary py-4 rounded-xl font-semibold text-base shadow-lg shadow-zinc-300 hover:shadow-xl transition-all transform hover:-translate-y-0.5 mt-4">
-                                Confirmar Presença
+                            <button type="submit" class="btn-primary w-full px-6 py-3 rounded-lg font-bold hover:opacity-90 transition">
+                                Confirmar Pagamento
                             </button>
                         </form>
                     {% endif %}
                 </div>
             </div>
+
         </div>
 
-        {# --- ÁREA RESTRITA DO ORGANIZADOR --- #}
+        <hr class="my-12">
+
+        {# --- VISÃO DO ORGANIZADOR: SÓ VISÍVEL COM O TOKEN SECRETO NA URL --- #}
         {% if is_organizer_view %}
-            <div class="mt-24 border-t border-zinc-200 pt-12">
-                <div class="bg-zinc-900 text-white p-6 md:p-8 rounded-2xl shadow-2xl relative overflow-hidden">
-                    <div class="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
-                        <svg class="w-32 h-32" fill="currentColor" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
-                    </div>
-
-                    <div class="flex justify-between items-start mb-8 relative z-10">
-                        <div>
-                            <span class="inline-block px-2 py-1 bg-zinc-800 text-zinc-300 text-[10px] font-bold uppercase tracking-wider rounded mb-2">Admin Dashboard</span>
-                            <h3 class="text-2xl font-bold">Controle Financeiro</h3>
-                        </div>
-                        <div class="text-right">
-                            <p class="text-sm text-zinc-400">Total Arrecadado</p>
-                            <p class="text-3xl font-bold tracking-tight">R$ {{ confirmed_count * 50 }}</p>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-3 gap-4 mb-8">
-                        <div class="bg-zinc-800/50 p-4 rounded-xl backdrop-blur-sm border border-zinc-700">
-                            <span class="block text-2xl font-bold text-white">{{ confirmed_count }}</span>
-                            <span class="text-[10px] text-zinc-400 uppercase">Confirmados</span>
-                        </div>
-                        <div class="bg-zinc-800/50 p-4 rounded-xl backdrop-blur-sm border border-zinc-700">
-                            <span class="block text-2xl font-bold text-zinc-300">{{ guests_all | length - confirmed_count }}</span>
-                            <span class="text-[10px] text-zinc-400 uppercase">Pendentes</span>
-                        </div>
-                        <div class="bg-zinc-800/50 p-4 rounded-xl backdrop-blur-sm border border-zinc-700">
-                            <span class="block text-2xl font-bold text-zinc-300">{{ guests_all | length }}</span>
-                            <span class="text-[10px] text-zinc-400 uppercase">Total</span>
-                        </div>
-                    </div>
-
-                    <div class="bg-white rounded-xl overflow-hidden text-zinc-800">
-                        <table class="min-w-full divide-y divide-zinc-100">
-                            <thead class="bg-zinc-50">
-                                <tr>
-                                    <th class="px-6 py-4 text-left text-xs font-semibold text-zinc-400 uppercase tracking-wider">Participante</th>
-                                    <th class="px-6 py-4 text-left text-xs font-semibold text-zinc-400 uppercase tracking-wider">Status</th>
-                                    <th class="px-6 py-4 text-left text-xs font-semibold text-zinc-400 uppercase tracking-wider">Anexo</th>
-                                    <th class="px-6 py-4 text-right text-xs font-semibold text-zinc-400 uppercase tracking-wider">Aprovação</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-zinc-50">
-                                {% for guest in guests_all %}
-                                <tr class="hover:bg-zinc-50 transition-colors">
-                                    <td class="px-6 py-4">
-                                        <div class="text-sm font-medium text-zinc-900">{{ guest.name }}</div>
-                                        <div class="text-xs text-zinc-400">{{ guest.email }}</div>
-                                    </td>
-                                    <td class="px-6 py-4 status-cell">
-                                        {% if guest.status == 'CONFIRMED' %}
-                                            <span class="px-2 py-0.5 inline-flex text-xs font-medium rounded bg-green-100 text-green-800">Pago</span>
-                                        {% else %}
-                                            <span class="px-2 py-0.5 inline-flex text-xs font-medium rounded bg-yellow-100 text-yellow-800">Análise</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="px-6 py-4 text-sm">
-                                        {% if guest.payment_proof_url %}
-                                            <a href="{{ asset_base_url }}/assets/{{ guest.payment_proof_url }}" target="_blank" class="text-blue-600 hover:text-blue-800 text-xs font-medium underline decoration-blue-200 underline-offset-2">
-                                                Abrir Comprovante
-                                            </a>
-                                        {% else %}
-                                            <span class="text-zinc-300 text-xs">--</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="px-6 py-4 text-right">
-                                        {% if guest.status == 'PENDING' %}
-                                            <button onclick="approveGuest('{{ guest.id }}', this)" class="btn-approve">
-                                                Aprovar
-                                            </button>
-                                        {% else %}
-                                            <span class="text-green-500 font-bold text-sm">✓</span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% else %}
-                                <tr>
-                                    <td colspan="4" class="px-6 py-8 text-center text-zinc-400 text-sm">
-                                        A lista está vazia.
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+            <section class="bg-blue-50 p-6 md:p-10 rounded-xl shadow-lg border-2 border-blue-200">
+                <h3 class="text-3xl font-extrabold text-blue-900 mb-6 flex justify-between items-center">
+                    Painel de Aprovação 🔒
+                    <span class="text-lg font-normal text-gray-700">Total Faltando: {{ guest_limit - confirmed_count }}</span>
+                </h3>
+                
+                <div class="grid grid-cols-4 gap-4 mb-8 text-center font-bold">
+                    <div class="p-3 bg-green-200 rounded">Confirmados: {{ confirmed_count }}</div>
+                    <div class="p-3 bg-yellow-200 rounded">Pendentes: {{ guests_all | length - confirmed_count }}</div>
+                    <div class="p-3 bg-red-200 rounded">Rejeitados: {{ guests_all | selectattr('status', 'equalto', 'REJECTED') | list | length }}</div>
+                    <div class="p-3 bg-gray-200 rounded">Total Registros: {{ guests_all | length }}</div>
                 </div>
-            </div>
+
+                <h4 class="text-xl font-bold text-gray-800 mb-4">Comprovantes Recebidos (Ações)</h4>
+
+                {% if guests_all %}
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white rounded-lg shadow-md">
+                        <thead>
+                            <tr class="bg-gray-100 text-left text-sm font-semibold text-gray-600 border-b">
+                                <th class="py-3 px-4">Nome</th>
+                                <th class="py-3 px-4">Email</th>
+                                <th class="py-3 px-4">Status</th>
+                                <th class="py-3 px-4">Comprovante</th>
+                                <th class="py-3 px-4">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for guest in guests_all %}
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="py-3 px-4">{{ guest.name | default('N/D') }}</td>
+                                <td class="py-3 px-4">{{ guest.email | default('N/D') }}</td>
+                                <td class="py-3 px-4 status-cell">
+                                    {% set status_class = {'CONFIRMED': 'bg-green-100 text-green-800', 'PENDING': 'bg-yellow-100 text-yellow-800', 'REJECTED': 'bg-red-100 text-red-800'}.get(guest.status, 'bg-gray-100 text-gray-800') %}
+                                    <span class="inline-block px-2 py-1 text-xs font-semibold rounded {{ status_class }}">{{ guest.status | default('PENDING') }}</span>
+                                </td>
+                                <td class="py-3 px-4">
+                                    {% if guest.payment_proof_url %}
+                                        <a href="{{ asset_base_url }}/assets/{{ guest.payment_proof_url }}" target="_blank" class="text-blue-500 hover:text-blue-700 font-medium">
+                                            Ver Imagem
+                                        </a>
+                                    {% else %}
+                                        Sem comprovante
+                                    {% endif %}
+                                </td>
+                                <td class="py-3 px-4">
+                                    {% if guest.status == 'PENDING' %}
+                                        <button 
+                                            onclick="approveGuest('{{ guest.id }}', this)" 
+                                            class="btn-approve px-3 py-1 text-sm rounded transition duration-200"
+                                        >
+                                            Aprovar
+                                        </button>
+                                    {% else %}
+                                        Aprovado/Rejeitado
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                    <p class="text-gray-500">Nenhum registro de pagamento enviado ainda.</p>
+                {% endif %}
+
+            </section>
         {% endif %}
+
 
     </main>
 
-    <footer class="text-center py-10 mt-10 border-t border-zinc-200 bg-white">
-        <p class="text-xs text-zinc-400">Powered by <strong class="text-zinc-900">Leanttro</strong></p>
+    <footer class="bg-gray-800 text-white py-8 text-center mt-12">
+        <p>&copy; 2025 {{ tenant.company_name }} - Powered by <strong>Leanttro - Divisão de Valores</strong></p>
     </footer>
 
 </body>
