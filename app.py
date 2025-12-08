@@ -6,7 +6,7 @@ from urllib.parse import urljoin
 import json 
 import re 
 
-# Desabilita alertas de SSL (útil pois sua comunicação interna pode não ter SSL validado)
+# Desabilita alertas de SSL (importante para comunicação interna)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = Flask(__name__)
@@ -14,7 +14,7 @@ app = Flask(__name__)
 # =========================================================================
 # 1. CONFIGURAÇÃO DE CONEXÃO COM DIRECTUS
 # =========================================================================
-# Tenta conectar tanto externamente quanto internamente (Docker network)
+# Tenta conectar tanto externamente quanto internamente
 DIRECTUS_URL_EXTERNAL = os.getenv("DIRECTUS_URL", "https://directus.leanttro.com")
 DIRECTUS_URL_INTERNAL = "http://213.199.56.207:8055" 
 
@@ -23,7 +23,7 @@ DIRECTUS_URLS_TO_TRY = [
     DIRECTUS_URL_INTERNAL
 ]
 
-# Variável global para armazenar a URL que funcionou (otimização)
+# Variável global para cache da URL que funcionou
 GLOBAL_SUCCESSFUL_URL = None
 
 # =========================================================================
@@ -31,37 +31,37 @@ GLOBAL_SUCCESSFUL_URL = None
 # =========================================================================
 def create_dokploy_domain(subdomain):
     """
-    Função que chama a API do Dokploy para criar o subdomínio e gerar SSL.
-    Lê as variáveis de ambiente que você configurou no painel.
+    Chama a API do Dokploy para registrar o domínio no Traefik (Proxy).
+    Isso faz o erro '404 page not found' do Traefik sumir.
     """
     DOKPLOY_URL = os.getenv("DOKPLOY_URL") 
     DOKPLOY_TOKEN = os.getenv("DOKPLOY_TOKEN")
-    APP_ID = os.getenv("DOKPLOY_APP_ID") # O ID que pegamos da URL (wqngj...)
+    APP_ID = os.getenv("DOKPLOY_APP_ID") # O ID wqngj...
     
-    # Verificação de segurança
+    # Verifica se as variáveis existem
     if not all([DOKPLOY_URL, DOKPLOY_TOKEN, APP_ID]):
-        print("⚠️ AVISO: Variáveis do Dokploy (URL, TOKEN ou APP_ID) não configuradas.")
+        print("⚠️ AVISO: Variáveis do Dokploy não configuradas. Domínio não será criado.")
         return False
 
-    # Limpa a URL se tiver barra no final
+    # Limpa a URL
     if DOKPLOY_URL.endswith('/'):
         DOKPLOY_URL = DOKPLOY_URL[:-1]
 
     full_domain = f"{subdomain}.leanttro.com"
-    print(f"🔄 [DOKPLOY] Solicitando criação de: {full_domain} no App ID: {APP_ID}")
+    print(f"🔄 [DOKPLOY] Tentando criar rota para: {full_domain} no App ID: {APP_ID}")
 
     headers = {
         "Authorization": f"Bearer {DOKPLOY_TOKEN}",
         "Content-Type": "application/json"
     }
     
-    # Payload para criar o domínio com SSL (Let's Encrypt)
+    # Payload exato para o Dokploy
     payload = {
         "applicationId": APP_ID,
         "host": full_domain,
         "path": "/",
-        "port": 5000,           # Porta interna do Flask (definida no seu Start Cmd)
-        "https": True,          # Força HTTPS
+        "port": 5000,           # Deve bater com o seu comando gunicorn :5000
+        "https": True,          # Força SSL
         "certificateType": "letsencrypt"
     }
     
@@ -70,14 +70,14 @@ def create_dokploy_domain(subdomain):
             f"{DOKPLOY_URL}/api/domain.create", 
             json=payload, 
             headers=headers, 
-            timeout=15
+            timeout=20
         )
         
         if response.status_code in [200, 201]:
-            print(f"✅ [DOKPLOY] SUCESSO! Domínio {full_domain} criado.")
+            print(f"✅ [DOKPLOY] SUCESSO! Rota criada para {full_domain}")
             return True
         else:
-            print(f"⚠️ [DOKPLOY] ERRO ({response.status_code}): {response.text}")
+            print(f"⚠️ [DOKPLOY] ERRO API ({response.status_code}): {response.text}")
             return False
             
     except Exception as e:
@@ -85,7 +85,7 @@ def create_dokploy_domain(subdomain):
         return False
 
 # =========================================================================
-# 3. FUNÇÕES AUXILIARES (DIRECTUS)
+# 3. FUNÇÕES AUXILIARES
 # =========================================================================
 
 def clean_url(url):
@@ -109,8 +109,7 @@ def fetch_collection_data(url_base, collection_name, tenant_id, params=None):
             return response.json().get('data', [])
         else:
             return []
-    except Exception as e:
-        print(f"Erro ao buscar {collection_name}: {str(e)}")
+    except:
         return []
 
 # =========================================================================
@@ -121,21 +120,26 @@ def fetch_collection_data(url_base, collection_name, tenant_id, params=None):
 def home():
     global GLOBAL_SUCCESSFUL_URL
     
-    # Identifica o subdomínio acessado
+    # Lógica de Subdomínio
     host = request.headers.get('Host', '')
     if 'localhost' in host or '127.0.0.1' in host:
-        subdomain = 'teste' # Fallback para dev local
+        subdomain = 'teste'
     else:
+        # Pega a primeira parte do domínio (ex: bia.leanttro.com -> bia)
         subdomain = host.split('.')[0]
+
+    # Se acessar direto a raiz ou 'confras', mostra a página de venda
+    if subdomain == 'leanttro' or subdomain == 'www' or subdomain == 'confras':
+         return render_template("confras.html")
 
     successful_url = None
     response = None
 
-    # Tenta encontrar o Directus (Retry Logic)
+    # Tenta conectar no Directus
     for current_url in DIRECTUS_URLS_TO_TRY:
         current_url = clean_url(current_url)
         try:
-            # Busca o Tenant pelo subdomínio
+            # Busca o Tenant
             url_tenants = f"{current_url}/items/tenants"
             params = {"filter[subdomain][_eq]": subdomain}
             response = requests.get(url_tenants, params=params, verify=False, timeout=5)
@@ -148,32 +152,34 @@ def home():
             continue
             
     if not successful_url:
-        return "<h1>Erro de Conexão com o Banco de Dados (Directus).</h1>", 500
+        return "<h1>Erro: Banco de Dados Indisponível</h1><p>Não foi possível conectar ao Directus.</p>", 500
 
     data = response.json()
     
-    # Roteamento Lógico: Se não achou tenant, vê se é a página principal 'confras'
+    # SE NÃO ACHOU O TENANT NO BANCO
     if not data.get('data'):
-         if subdomain == 'confras':
-             return render_template("confras.html")
-         
-         return f"<h1>404 - Página não encontrada</h1><p>O endereço {subdomain} não existe.</p>", 404
+         return f"""
+         <div style="text-align:center; padding: 50px; font-family: sans-serif;">
+            <h1>Evento não encontrado (404)</h1>
+            <p>O endereço <strong>{subdomain}.leanttro.com</strong> não está registrado em nossa base.</p>
+            <p><a href="https://confras.leanttro.com">Criar meu evento agora</a></p>
+         </div>
+         """, 404
 
     tenant = data['data'][0]
     tenant_id = tenant['id']
     
-    # Carrega dados do evento (Produtos, Convidados, Configs)
+    # Carrega dados
     products = fetch_collection_data(successful_url, "products", tenant_id)
     sections = fetch_collection_data(successful_url, "sections", tenant_id)
-    
     guests_all = fetch_collection_data(successful_url, "vaquinha_guests", tenant_id, params={"sort": "-created_at"})
     guests_confirmed = [g for g in guests_all if g.get('status') == 'CONFIRMED']
     
     vaquinha_settings_list = fetch_collection_data(successful_url, "vaquinha_settings", tenant_id)
     vaquinha_settings = vaquinha_settings_list[0] if vaquinha_settings_list else {}
     
-    # Renderiza o template (padrão 'vaquinha.html')
     template_base_name = tenant.get('template_name') or 'home'
+    
     return render_template(
         f"{template_base_name}.html",
         tenant=tenant,
@@ -185,43 +191,38 @@ def home():
         directus_external_url=DIRECTUS_URL_EXTERNAL
     )
 
-# --- ROTA DE CRIAÇÃO (PROCESSO PRINCIPAL) ---
+# --- ROTA DE CRIAÇÃO (ONDE A MÁGICA ACONTECE) ---
 @app.route('/api/create_tenant', methods=['POST'])
 def create_tenant():
-    # Token para escrever no Directus (Admin)
-    ADMIN_TOKEN = os.getenv("DIRECTUS_ADMIN_TOKEN") # O token 'jr6z...' do seu print
+    ADMIN_TOKEN = os.getenv("DIRECTUS_ADMIN_TOKEN")
     
     if not ADMIN_TOKEN:
-        return jsonify({"status": "error", "message": "Erro de config: Token ADMIN faltando."}), 500
+        return jsonify({"status": "error", "message": "Token ADMIN não configurado no servidor."}), 500
 
     directus_api_url = GLOBAL_SUCCESSFUL_URL or clean_url(os.getenv("DIRECTUS_URL", "https://directus.leanttro.com"))
     
     try:
         data = request.get_json()
         
-        # Validação Básica
+        # Limpa o subdomínio
         if not data.get('subdomain'):
-             return jsonify({"status": "error", "message": "Subdomínio é obrigatório."}), 400
+             return jsonify({"status": "error", "message": "Subdomínio inválido."}), 400
         
-        # Higieniza o subdomínio
         subdomain_clean = data['subdomain'].lower()
         subdomain_clean = re.sub(r'[^a-z0-9-]', '', subdomain_clean)
-
-        # Gera o token do administrador dessa nova página
         admin_token = subdomain_clean.upper() + "_TOKEN_MASTER"
 
-        # Prepara dados para o Directus
         tenant_data = {
             "company_name": data.get('company_name'),
             "subdomain": subdomain_clean,
             "email": data.get('email'),
             "pix_key": data.get('pix_key'),
-            "pix_owner_name": data.get('company_name'), # Usa nome da empresa como dono se não informado
+            "pix_owner_name": data.get('company_name'),
             "guest_limit": 20,
             "plan_type": "free",
             "template_name": "vaquinha",
             "status": "active",
-            "primary_color": "#22C55E", # Verde padrão
+            "primary_color": "#22C55E",
             "admin_token": admin_token
         }
         
@@ -230,7 +231,7 @@ def create_tenant():
             "Content-Type": "application/json"
         }
 
-        # 1. Cria o Tenant no Directus
+        # 1. Salva no Directus
         tenant_create_resp = requests.post(
             f"{directus_api_url}/items/tenants",
             headers=headers,
@@ -238,25 +239,18 @@ def create_tenant():
             verify=False
         )
         
-        # Tratamento de erro (ex: duplicidade)
         if tenant_create_resp.status_code != 200:
-            error_msg = "Erro ao criar registro."
+            error_msg = "Este nome de site já está em uso."
             try:
-                error_body = tenant_create_resp.json()
-                if 'errors' in error_body:
-                    msg_detalhada = error_body['errors'][0].get('message')
-                    if 'subdomain' in msg_detalhada and 'unique' in msg_detalhada:
-                        error_msg = "Este subdomínio já existe. Escolha outro."
-                    else:
-                        error_msg = msg_detalhada
+                if 'unique' not in tenant_create_resp.text:
+                    error_msg = tenant_create_resp.json()['errors'][0]['message']
             except:
                 pass
-            
             return jsonify({"status": "error", "message": error_msg}), 400
 
         new_tenant_id = tenant_create_resp.json()['data']['id']
         
-        # 2. Cria Usuário Admin da Loja (Opcional, mas bom para login futuro)
+        # 2. Cria User Admin
         user_data = {
             "tenant_id": new_tenant_id,
             "email": data.get('email'),
@@ -266,45 +260,31 @@ def create_tenant():
         }
         requests.post(f"{directus_api_url}/items/users", headers=headers, json=user_data, verify=False)
         
-        # 3. AUTOMAÇÃO DOKPLOY (CRIAÇÃO DO DOMÍNIO REAL)
-        # Tenta criar o domínio via API do Dokploy
-        dokploy_success = False
+        # 3. DOKPLOY AUTOMATION (CRIA O DOMÍNIO)
+        # Se isso falhar, o site não abre (dá erro 404 no navegador)
         try:
-            dokploy_success = create_dokploy_domain(subdomain_clean)
-        except Exception as e_dok:
-            print(f"Erro ao tentar criar domínio no Dokploy: {e_dok}")
+            create_dokploy_domain(subdomain_clean)
+        except Exception as e:
+            print(f"Erro ao chamar Dokploy: {e}")
 
-        # Mensagem final dependendo se o domínio foi criado automaticamente ou não
-        msg_final = "CRIADO COM SUCESSO!"
-        if not dokploy_success:
-            msg_final += " (Porém houve um erro ao registrar o domínio no servidor. Contate o suporte.)"
-
-        # 4. RETORNO FINAL PARA O FRONTEND
+        # 4. Retorno JSON (Com Admin Token!)
         return jsonify({
             "status": "success",
-            "message": msg_final,
-            # Retorna https pois tentamos criar o certificado
-            "url": f"https://{subdomain_clean}.leanttro.com", 
+            "message": "Criado com sucesso!",
+            "url": f"https://{subdomain_clean}.leanttro.com",
             "subdomain": subdomain_clean,
-            "admin_token": admin_token  # <--- CRÍTICO: Token para o usuário acessar o painel
+            "admin_token": admin_token # Essencial para o link do painel funcionar
         }), 200
 
     except Exception as e:
-        return jsonify({"status": "error", "message": f"Erro interno do servidor: {str(e)}"}), 500
+        return jsonify({"status": "error", "message": f"Erro Interno: {str(e)}"}), 500
 
-# --- ROTA DE APROVAÇÃO (PAINEL ADMIN) ---
 @app.route('/api/approve_guest', methods=['POST'])
 def approve_guest():
     directus_api_url = GLOBAL_SUCCESSFUL_URL or clean_url(os.getenv("DIRECTUS_URL", "https://directus.leanttro.com"))
-    
     try:
         data = request.get_json()
         guest_id = data.get('guest_id')
-        
-        if not guest_id:
-            return jsonify({"status": "error", "message": "ID faltando"}), 400
-
-        # Atualiza status para CONFIRMED
         requests.patch(
             f"{directus_api_url}/items/vaquinha_guests/{guest_id}",
             json={"status": "CONFIRMED"},
@@ -314,7 +294,6 @@ def approve_guest():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# --- ROTA DE ENVIO DE COMPROVANTE (PÚBLICO) ---
 @app.route('/api/confirm_vaquinha', methods=['POST'])
 def confirm_vaquinha():
     directus_api_url = GLOBAL_SUCCESSFUL_URL or clean_url(os.getenv("DIRECTUS_URL", "https://directus.leanttro.com"))
@@ -322,11 +301,10 @@ def confirm_vaquinha():
     guest_name = request.form.get('name')
     guest_email = request.form.get('email')
     proof_file = request.files.get('proof')
-
+    
     host = request.headers.get('Host', '')
     subdomain = host.split('.')[0]
     
-    # Busca ID do Tenant
     tenant_id = None
     try:
         t_resp = requests.get(
@@ -340,9 +318,8 @@ def confirm_vaquinha():
         pass
 
     if not tenant_id:
-        return jsonify({"status": "error", "message": "Erro ao identificar evento."}), 404
+        return jsonify({"status": "error", "message": "Evento não encontrado."}), 404
 
-    # Upload do Arquivo no Directus
     file_id = None
     if proof_file:
         try:
@@ -351,9 +328,8 @@ def confirm_vaquinha():
             if up_resp.status_code in [200, 201]:
                 file_id = up_resp.json()['data']['id']
         except:
-            print("Erro no upload da imagem")
+            pass
 
-    # Cria o convidado (Status PENDING)
     try:
         requests.post(
             f"{directus_api_url}/items/vaquinha_guests",
@@ -370,10 +346,9 @@ def confirm_vaquinha():
         return f"""
         <body style="font-family:sans-serif; text-align:center; padding:50px; background:#f0fdf4;">
             <div style="background:white; padding:40px; border-radius:10px; max-width:500px; margin:auto; box-shadow:0 10px 25px rgba(0,0,0,0.1);">
-                <h1 style="color:#16a34a;">✅ Recebido!</h1>
-                <p>Obrigado <b>{guest_name}</b>.</p>
-                <p>O organizador analisará seu comprovante em breve.</p>
-                <a href="/" style="display:inline-block; margin-top:20px; text-decoration:none; color:#16a34a; font-weight:bold; border: 1px solid #16a34a; padding: 10px 20px; border-radius: 5px;">&larr; Voltar para a Vaquinha</a>
+                <h1 style="color:#16a34a;">✅ Enviado!</h1>
+                <p>Obrigado <b>{guest_name}</b>. Seu comprovante está em análise.</p>
+                <a href="/" style="display:inline-block; margin-top:20px; text-decoration:none; color:#16a34a; font-weight:bold;">&larr; Voltar</a>
             </div>
         </body>
         """
