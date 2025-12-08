@@ -10,13 +10,14 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 app = Flask(__name__)
 
 # =========================================================================
-# CONFIGURAÇÕES
+# CONFIGURAÇÕES BLINDADAS (HARDCODED)
 # =========================================================================
 BASE_URL = "https://confras.leanttro.com"
 
-# --- CONFIGURAÇÃO BLINDADA DO DIRECTUS ---
-# Coloquei as credenciais fixas aqui para não depender de variáveis de ambiente
-DIRECTUS_TOKEN_FIXED = "jr6zCuYS16YuM6AGFpXI9aEd5IIIZdrn" 
+# --- SEU NOVO TOKEN FIXO AQUI ---
+DIRECTUS_TOKEN_FIXED = "cz8LXaAjjkVFj87l6Mq60PFm4vvpxr_H"
+
+# URLs do Directus
 DIRECTUS_URL_INTERNAL = "http://213.199.56.207:8055"
 DIRECTUS_URL_EXTERNAL = "https://directus.leanttro.com"
 
@@ -26,6 +27,7 @@ DIRECTUS_URL_EXTERNAL = "https://directus.leanttro.com"
 def get_directus_url():
     """Tenta usar a rede interna primeiro (mais rápido), senão vai pela externa"""
     try:
+        # Tenta pingar a interna com timeout curto
         requests.get(f"{DIRECTUS_URL_INTERNAL}/server/ping", timeout=1)
         return DIRECTUS_URL_INTERNAL
     except:
@@ -35,7 +37,6 @@ def fetch_collection_data(url_base, collection_name, tenant_id, params=None):
     if params is None: params = {}
     params["filter[tenant_id][_eq]"] = tenant_id
     try:
-        # Tenta buscar dados. Se falhar, retorna lista vazia para não quebrar o site
         r = requests.get(f"{url_base}/items/{collection_name}", params=params, verify=False, timeout=5)
         return r.json().get('data', []) if r.status_code == 200 else []
     except: 
@@ -50,13 +51,13 @@ def fetch_collection_data(url_base, collection_name, tenant_id, params=None):
 def home():
     return render_template("confras.html")
 
-# 2. ROTA DA FESTA (VISUALIZAÇÃO)
+# 2. ROTA DA FESTA (VISUALIZAÇÃO / PAGAMENTO)
 @app.route('/festa/<slug>')
 def festa_view(slug):
     api_url = get_directus_url()
     
     try:
-        # Busca o tenant/festa
+        # Busca o tenant/festa no banco
         r = requests.get(
             f"{api_url}/items/tenants", 
             params={"filter[subdomain][_eq]": slug}, 
@@ -64,15 +65,22 @@ def festa_view(slug):
         )
         data = r.json()
     except Exception as e:
-        return f"<h1>Erro de Conexão</h1><p>Não foi possível conectar ao banco de dados: {str(e)}</p>", 500
+        # Se der erro de conexão, mostra mensagem clara em vez de erro 500 genérico
+        return f"<h1>Erro de Conexão com Banco de Dados</h1><p>Detalhes: {str(e)}</p>", 500
 
     if not data.get('data'):
-         return f"<h1>Evento não encontrado</h1><p>O link <strong>{slug}</strong> não existe.</p><a href='/'>Criar Novo</a>", 404
+         return f"""
+         <div style="font-family:sans-serif; text-align:center; padding:50px;">
+            <h1>Evento não encontrado (404)</h1>
+            <p>O link <strong>/festa/{slug}</strong> não existe.</p>
+            <a href='/'>Criar Novo Evento</a>
+         </div>
+         """, 404
 
     tenant = data['data'][0]
     tenant_id = tenant['id']
     
-    # Busca dados relacionados
+    # Busca dados relacionados (Produtos, Convidados, Configurações)
     products = fetch_collection_data(api_url, "products", tenant_id)
     sections = fetch_collection_data(api_url, "sections", tenant_id)
     guests = fetch_collection_data(api_url, "vaquinha_guests", tenant_id, params={"sort": "-created_at"})
@@ -81,7 +89,7 @@ def festa_view(slug):
     settings = settings_list[0] if settings_list else {}
     
     return render_template(
-        "vaquinha.html", # Forçando o template vaquinha.html que te mandei antes
+        "vaquinha.html", 
         tenant=tenant, 
         products=products, 
         sections=sections,
@@ -92,10 +100,10 @@ def festa_view(slug):
         current_slug=slug
     )
 
-# 3. API - CRIAR NOVA FESTA
+# 3. API - CRIAR NOVA FESTA (USANDO O TOKEN NOVO)
 @app.route('/api/create_tenant', methods=['POST'])
 def create_tenant():
-    # Usa o token FIXO que pegamos do seu print
+    # Usa o token FIXO que você mandou agora
     ADMIN_TOKEN = DIRECTUS_TOKEN_FIXED
     api_url = get_directus_url()
     
@@ -106,18 +114,21 @@ def create_tenant():
         
         if not slug: return jsonify({"status": "error", "message": "Link inválido. Use apenas letras e números."}), 400
 
-        print(f"DEBUG: Criando festa '{slug}'...")
+        print(f"DEBUG: Criando festa '{slug}' usando token fixo...")
 
         headers = {"Authorization": f"Bearer {ADMIN_TOKEN}", "Content-Type": "application/json"}
 
-        # 1. Verifica se já existe
-        check = requests.get(f"{api_url}/items/tenants", params={"filter[subdomain][_eq]": slug}, headers=headers, verify=False)
-        
-        if check.status_code == 401:
-             return jsonify({"status": "error", "message": "Erro de Permissão (Token Inválido). Verifique o app.py"}), 500
-        
-        if check.json().get('data'):
-             return jsonify({"status": "error", "message": "Este link já está em uso. Tente outro nome."}), 400
+        # 1. Verifica se já existe (Evita duplicidade)
+        try:
+            check = requests.get(f"{api_url}/items/tenants", params={"filter[subdomain][_eq]": slug}, headers=headers, verify=False)
+            
+            if check.status_code == 401:
+                 return jsonify({"status": "error", "message": "O Token do Directus no app.py foi recusado. Verifique se copiou certo."}), 500
+            
+            if check.json().get('data'):
+                 return jsonify({"status": "error", "message": "Este nome de link já existe. Escolha outro."}), 400
+        except Exception as conn_err:
+             return jsonify({"status": "error", "message": f"Erro ao conectar no Directus: {str(conn_err)}"}), 500
 
         # 2. Cria Tenant no Banco
         admin_token_suffix = re.sub(r'[^a-zA-Z0-9]', '', data.get('password', 'master'))
@@ -136,11 +147,11 @@ def create_tenant():
         resp = requests.post(f"{api_url}/items/tenants", headers=headers, json=tenant_payload, verify=False)
         
         if resp.status_code != 200:
-            return jsonify({"status": "error", "message": f"Erro do Banco: {resp.text}"}), 500
+            return jsonify({"status": "error", "message": f"Erro ao salvar: {resp.text}"}), 500
 
         new_id = resp.json()['data']['id']
         
-        # 3. Cria Usuário Admin da Loja
+        # 3. Cria Usuário Admin da Loja (Opcional, mas útil para login futuro)
         requests.post(f"{api_url}/items/users", headers=headers, json={
             "tenant_id": new_id, "email": data.get('email'), 
             "password_hash": data.get('password'), "role": "Loja Admin"
@@ -181,14 +192,19 @@ def confirm_vaquinha():
     slug_origem = request.form.get('origin_slug')
     proof_file = request.files.get('proof')
     
-    if not slug_origem: return "Erro: Origem desconhecida", 400
+    if not slug_origem: return "Erro: Origem desconhecida (slug faltando)", 400
 
     # Busca ID do Tenant
     try:
         t_resp = requests.get(f"{api_url}/items/tenants", params={"filter[subdomain][_eq]": slug_origem}, verify=False)
-        tenant_id = t_resp.json()['data'][0]['id']
+        data_tenant = t_resp.json().get('data')
+        
+        if not data_tenant:
+             return "Erro: Evento não encontrado no banco.", 404
+             
+        tenant_id = data_tenant[0]['id']
     except:
-        return "Erro ao identificar evento", 500
+        return "Erro de conexão ao validar evento", 500
 
     # Upload
     file_id = None
@@ -201,20 +217,28 @@ def confirm_vaquinha():
         except: pass
 
     # Salva convidado
-    requests.post(
-        f"{api_url}/items/vaquinha_guests",
-        json={
-            "tenant_id": tenant_id, "name": guest_name, 
-            "email": guest_email, "payment_proof_url": file_id, "status": "PENDING"
-        },
-        verify=False
-    )
+    try:
+        requests.post(
+            f"{api_url}/items/vaquinha_guests",
+            json={
+                "tenant_id": tenant_id, "name": guest_name, 
+                "email": guest_email, "payment_proof_url": file_id, "status": "PENDING"
+            },
+            verify=False
+        )
+    except Exception as e:
+        return f"Erro ao salvar convidado: {str(e)}", 500
     
+    # Página de sucesso simples com botão de voltar
     return f"""
-    <body style="font-family:sans-serif; text-align:center; padding:50px;">
-        <h1 style="color:green;">✅ Enviado!</h1>
-        <p>Aguarde a aprovação do organizador.</p>
-        <a href="/festa/{slug_origem}">Voltar</a>
+    <body style="font-family:sans-serif; text-align:center; padding:50px; background-color: #f0fdf4;">
+        <div style="background: white; padding: 40px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; margin: auto;">
+            <h1 style="color:green; margin-bottom: 20px;">✅ Enviado com Sucesso!</h1>
+            <p style="color: #374151; font-size: 18px;">Obrigado, <strong>{guest_name}</strong>.</p>
+            <p style="color: #6b7280;">Seu comprovante foi enviado para o organizador.</p>
+            <br>
+            <a href="/festa/{slug_origem}" style="display: inline-block; background-color: #22c55e; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">&larr; Voltar para a Festa</a>
+        </div>
     </body>
     """
 
