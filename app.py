@@ -15,7 +15,7 @@ app = Flask(__name__)
 BASE_URL = "https://confras.leanttro.com"
 
 # --- TOKEN NOVO (Copiado do seu print image_66539c.png) ---
-DIRECTUS_TOKEN_FIXED = "HcBe-VBoIm31kD-gxpOsv-mgWjTX8UfD"
+DIRECTUS_TOKEN_FIXED = "thNyNhbRc_9Dp_jpjE0HXrku73zXbjZg"
 
 # URLs do Directus
 DIRECTUS_URL_INTERNAL = "http://213.199.56.207:8055"
