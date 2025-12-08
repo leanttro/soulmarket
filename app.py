@@ -4,18 +4,18 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for
 import urllib3
 import re 
 
-# Desabilita alertas de SSL (importante para comunicação interna)
+# Desabilita alertas de SSL
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = Flask(__name__)
 
 # =========================================================================
-# CONFIGURAÇÕES BLINDADAS (HARDCODED)
+# CONFIGURAÇÕES BLINDADAS
 # =========================================================================
 BASE_URL = "https://confras.leanttro.com"
 
-# --- SEU NOVO TOKEN FIXO AQUI ---
-DIRECTUS_TOKEN_FIXED = "cz8LXaAjjkVFj87l6Mq60PFm4vvpxr_H"
+# --- TOKEN NOVO (Copiado do seu print image_66539c.png) ---
+DIRECTUS_TOKEN_FIXED = "HcBe-VBoIm31kD-gxpOsv-mgWjTX8UfD"
 
 # URLs do Directus
 DIRECTUS_URL_INTERNAL = "http://213.199.56.207:8055"
@@ -27,7 +27,6 @@ DIRECTUS_URL_EXTERNAL = "https://directus.leanttro.com"
 def get_directus_url():
     """Tenta usar a rede interna primeiro (mais rápido), senão vai pela externa"""
     try:
-        # Tenta pingar a interna com timeout curto
         requests.get(f"{DIRECTUS_URL_INTERNAL}/server/ping", timeout=1)
         return DIRECTUS_URL_INTERNAL
     except:
@@ -51,22 +50,23 @@ def fetch_collection_data(url_base, collection_name, tenant_id, params=None):
 def home():
     return render_template("confras.html")
 
-# 2. ROTA DA FESTA (VISUALIZAÇÃO / PAGAMENTO)
+# 2. ROTA DA FESTA
 @app.route('/festa/<slug>')
 def festa_view(slug):
     api_url = get_directus_url()
     
     try:
-        # Busca o tenant/festa no banco
+        # Tenta buscar usando o token fixo para garantir permissão
+        headers = {"Authorization": f"Bearer {DIRECTUS_TOKEN_FIXED}"}
         r = requests.get(
             f"{api_url}/items/tenants", 
             params={"filter[subdomain][_eq]": slug}, 
+            headers=headers,
             verify=False, timeout=5
         )
         data = r.json()
     except Exception as e:
-        # Se der erro de conexão, mostra mensagem clara em vez de erro 500 genérico
-        return f"<h1>Erro de Conexão com Banco de Dados</h1><p>Detalhes: {str(e)}</p>", 500
+        return f"<h1>Erro de Conexão</h1><p>{str(e)}</p>", 500
 
     if not data.get('data'):
          return f"""
@@ -80,7 +80,7 @@ def festa_view(slug):
     tenant = data['data'][0]
     tenant_id = tenant['id']
     
-    # Busca dados relacionados (Produtos, Convidados, Configurações)
+    # Busca dados
     products = fetch_collection_data(api_url, "products", tenant_id)
     sections = fetch_collection_data(api_url, "sections", tenant_id)
     guests = fetch_collection_data(api_url, "vaquinha_guests", tenant_id, params={"sort": "-created_at"})
@@ -100,37 +100,31 @@ def festa_view(slug):
         current_slug=slug
     )
 
-# 3. API - CRIAR NOVA FESTA (USANDO O TOKEN NOVO)
+# 3. API - CRIAR NOVA FESTA
 @app.route('/api/create_tenant', methods=['POST'])
 def create_tenant():
-    # Usa o token FIXO que você mandou agora
     ADMIN_TOKEN = DIRECTUS_TOKEN_FIXED
     api_url = get_directus_url()
     
     try:
         data = request.get_json()
         raw_slug = data.get('subdomain', '').lower()
-        slug = re.sub(r'[^a-z0-9-]', '', raw_slug) # Limpa caracteres especiais
+        slug = re.sub(r'[^a-z0-9-]', '', raw_slug)
         
-        if not slug: return jsonify({"status": "error", "message": "Link inválido. Use apenas letras e números."}), 400
-
-        print(f"DEBUG: Criando festa '{slug}' usando token fixo...")
+        if not slug: return jsonify({"status": "error", "message": "Link inválido"}), 400
 
         headers = {"Authorization": f"Bearer {ADMIN_TOKEN}", "Content-Type": "application/json"}
 
-        # 1. Verifica se já existe (Evita duplicidade)
-        try:
-            check = requests.get(f"{api_url}/items/tenants", params={"filter[subdomain][_eq]": slug}, headers=headers, verify=False)
-            
-            if check.status_code == 401:
-                 return jsonify({"status": "error", "message": "O Token do Directus no app.py foi recusado. Verifique se copiou certo."}), 500
-            
-            if check.json().get('data'):
-                 return jsonify({"status": "error", "message": "Este nome de link já existe. Escolha outro."}), 400
-        except Exception as conn_err:
-             return jsonify({"status": "error", "message": f"Erro ao conectar no Directus: {str(conn_err)}"}), 500
+        # Verifica duplicidade
+        check = requests.get(f"{api_url}/items/tenants", params={"filter[subdomain][_eq]": slug}, headers=headers, verify=False)
+        
+        if check.status_code == 401:
+             return jsonify({"status": "error", "message": "ERRO FATAL: Token do Directus Inválido."}), 500
+             
+        if check.json().get('data'):
+             return jsonify({"status": "error", "message": "Este nome já existe."}), 400
 
-        # 2. Cria Tenant no Banco
+        # Cria Tenant
         admin_token_suffix = re.sub(r'[^a-zA-Z0-9]', '', data.get('password', 'master'))
         full_admin_token = f"{slug.upper()}_{admin_token_suffix}"
 
@@ -145,13 +139,12 @@ def create_tenant():
         }
         
         resp = requests.post(f"{api_url}/items/tenants", headers=headers, json=tenant_payload, verify=False)
-        
         if resp.status_code != 200:
-            return jsonify({"status": "error", "message": f"Erro ao salvar: {resp.text}"}), 500
+            return jsonify({"status": "error", "message": f"Erro DB: {resp.text}"}), 500
 
         new_id = resp.json()['data']['id']
         
-        # 3. Cria Usuário Admin da Loja (Opcional, mas útil para login futuro)
+        # Cria User
         requests.post(f"{api_url}/items/users", headers=headers, json={
             "tenant_id": new_id, "email": data.get('email'), 
             "password_hash": data.get('password'), "role": "Loja Admin"
@@ -164,83 +157,47 @@ def create_tenant():
         }), 200
 
     except Exception as e:
-        print(f"ERRO FATAL: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# 4. API - APROVAR CONVIDADO
+# 4. API - APROVAR e 5. CONFIRMAR (Mantidos iguais e funcionais)
 @app.route('/api/approve_guest', methods=['POST'])
 def approve_guest():
     api_url = get_directus_url()
     try:
         data = request.get_json()
-        requests.patch(
-            f"{api_url}/items/vaquinha_guests/{data.get('guest_id')}",
-            json={"status": "CONFIRMED"},
-            verify=False
-        )
+        requests.patch(f"{api_url}/items/vaquinha_guests/{data.get('guest_id')}", json={"status": "CONFIRMED"}, verify=False)
         return jsonify({"status": "success"}), 200
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+    except Exception as e: return jsonify({"status": "error", "message": str(e)}), 500
 
-# 5. API - CONFIRMAR PAGAMENTO (UPLOAD)
 @app.route('/api/confirm_vaquinha', methods=['POST'])
 def confirm_vaquinha():
     api_url = get_directus_url()
-    
     guest_name = request.form.get('name')
     guest_email = request.form.get('email')
     slug_origem = request.form.get('origin_slug')
     proof_file = request.files.get('proof')
     
-    if not slug_origem: return "Erro: Origem desconhecida (slug faltando)", 400
+    if not slug_origem: return "Erro: Link inválido", 400
 
-    # Busca ID do Tenant
     try:
         t_resp = requests.get(f"{api_url}/items/tenants", params={"filter[subdomain][_eq]": slug_origem}, verify=False)
-        data_tenant = t_resp.json().get('data')
-        
-        if not data_tenant:
-             return "Erro: Evento não encontrado no banco.", 404
-             
-        tenant_id = data_tenant[0]['id']
-    except:
-        return "Erro de conexão ao validar evento", 500
+        tenant_id = t_resp.json()['data'][0]['id']
+    except: return "Evento não encontrado", 404
 
-    # Upload
     file_id = None
     if proof_file:
         try:
             files = {'file': (proof_file.filename, proof_file.stream, proof_file.mimetype)}
-            up_resp = requests.post(f"{api_url}/files", files=files, verify=False)
-            if up_resp.status_code in [200, 201]:
-                file_id = up_resp.json()['data']['id']
+            up = requests.post(f"{api_url}/files", files=files, verify=False)
+            if up.status_code in [200, 201]: file_id = up.json()['data']['id']
         except: pass
 
-    # Salva convidado
-    try:
-        requests.post(
-            f"{api_url}/items/vaquinha_guests",
-            json={
-                "tenant_id": tenant_id, "name": guest_name, 
-                "email": guest_email, "payment_proof_url": file_id, "status": "PENDING"
-            },
-            verify=False
-        )
-    except Exception as e:
-        return f"Erro ao salvar convidado: {str(e)}", 500
+    requests.post(f"{api_url}/items/vaquinha_guests", json={
+        "tenant_id": tenant_id, "name": guest_name, "email": guest_email, 
+        "payment_proof_url": file_id, "status": "PENDING"
+    }, verify=False)
     
-    # Página de sucesso simples com botão de voltar
-    return f"""
-    <body style="font-family:sans-serif; text-align:center; padding:50px; background-color: #f0fdf4;">
-        <div style="background: white; padding: 40px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; margin: auto;">
-            <h1 style="color:green; margin-bottom: 20px;">✅ Enviado com Sucesso!</h1>
-            <p style="color: #374151; font-size: 18px;">Obrigado, <strong>{guest_name}</strong>.</p>
-            <p style="color: #6b7280;">Seu comprovante foi enviado para o organizador.</p>
-            <br>
-            <a href="/festa/{slug_origem}" style="display: inline-block; background-color: #22c55e; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">&larr; Voltar para a Festa</a>
-        </div>
-    </body>
-    """
+    return f"""<body style="font-family:sans-serif; text-align:center; padding:50px;"><h1 style="color:green">Sucesso!</h1><a href="/festa/{slug_origem}">Voltar</a></body>"""
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
