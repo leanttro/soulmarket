@@ -4,41 +4,54 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for
 import urllib3
 import re 
 
-# Desabilita alertas de SSL
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
 app = Flask(__name__)
 
 # =========================================================================
-# CONFIGURAÇÕES BLINDADAS
+# CONFIGURAÇÕES (Via Variáveis de Ambiente)
 # =========================================================================
-BASE_URL = "https://confras.leanttro.com"
 
-# --- TOKEN NOVO (Copiado do seu print image_66539c.png) ---
-DIRECTUS_TOKEN_FIXED = "thNyNhbRc_9Dp_jpjE0HXrku73zXbjZg"
+# Chave de segurança do Flask (Obrigatório para produção)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "uma_chave_padrao_insegura_mude_no_dokploy")
 
-# URLs do Directus
-DIRECTUS_URL_INTERNAL = "http://213.199.56.207:8055"
-DIRECTUS_URL_EXTERNAL = "https://directus.leanttro.com"
+# URL Base da sua aplicação (usado para gerar links)
+BASE_URL = os.environ.get("APP_BASE_URL", "https://confras.leanttro.com")
+
+# Configurações do Directus
+DIRECTUS_TOKEN = os.environ.get("DIRECTUS_TOKEN")
+DIRECTUS_URL = os.environ.get("DIRECTUS_URL", "https://directus.leanttro.com")
+
+# Controle de verificação SSL (True para produção externa, False se tiver erros de certificado interno)
+# No Dokploy, defina VERIFY_SSL como "false" se estiver usando IP interno ou container, ou "true" se usar HTTPS externo
+VERIFY_SSL_STR = os.environ.get("VERIFY_SSL", "true").lower()
+VERIFY_SSL = VERIFY_SSL_STR == "true"
+
+if not VERIFY_SSL:
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# Validação crítica na inicialização
+if not DIRECTUS_TOKEN:
+    print("⚠️  AVISO CRÍTICO: DIRECTUS_TOKEN não foi configurado nas variáveis de ambiente!")
 
 # =========================================================================
 # FUNÇÕES AUXILIARES
 # =========================================================================
-def get_directus_url():
-    """Tenta usar a rede interna primeiro (mais rápido), senão vai pela externa"""
-    try:
-        requests.get(f"{DIRECTUS_URL_INTERNAL}/server/ping", timeout=1)
-        return DIRECTUS_URL_INTERNAL
-    except:
-        return DIRECTUS_URL_EXTERNAL
 
-def fetch_collection_data(url_base, collection_name, tenant_id, params=None):
+def fetch_collection_data(collection_name, tenant_id, params=None):
     if params is None: params = {}
     params["filter[tenant_id][_eq]"] = tenant_id
+    
     try:
-        r = requests.get(f"{url_base}/items/{collection_name}", params=params, verify=False, timeout=5)
+        headers = {"Authorization": f"Bearer {DIRECTUS_TOKEN}"}
+        r = requests.get(
+            f"{DIRECTUS_URL}/items/{collection_name}", 
+            params=params, 
+            headers=headers,
+            verify=VERIFY_SSL, 
+            timeout=5
+        )
         return r.json().get('data', []) if r.status_code == 200 else []
-    except: 
+    except Exception as e: 
+        print(f"Erro ao buscar {collection_name}: {e}")
         return []
 
 # =========================================================================
@@ -53,20 +66,18 @@ def home():
 # 2. ROTA DA FESTA
 @app.route('/festa/<slug>')
 def festa_view(slug):
-    api_url = get_directus_url()
-    
     try:
-        # Tenta buscar usando o token fixo para garantir permissão
-        headers = {"Authorization": f"Bearer {DIRECTUS_TOKEN_FIXED}"}
+        headers = {"Authorization": f"Bearer {DIRECTUS_TOKEN}"}
         r = requests.get(
-            f"{api_url}/items/tenants", 
+            f"{DIRECTUS_URL}/items/tenants", 
             params={"filter[subdomain][_eq]": slug}, 
             headers=headers,
-            verify=False, timeout=5
+            verify=VERIFY_SSL, 
+            timeout=5
         )
         data = r.json()
     except Exception as e:
-        return f"<h1>Erro de Conexão</h1><p>{str(e)}</p>", 500
+        return f"<h1>Erro de Conexão com Banco de Dados</h1><p>Verifique o log do servidor.</p>", 500
 
     if not data.get('data'):
          return f"""
@@ -81,13 +92,16 @@ def festa_view(slug):
     tenant_id = tenant['id']
     
     # Busca dados
-    products = fetch_collection_data(api_url, "products", tenant_id)
-    sections = fetch_collection_data(api_url, "sections", tenant_id)
-    guests = fetch_collection_data(api_url, "vaquinha_guests", tenant_id, params={"sort": "-created_at"})
+    products = fetch_collection_data("products", tenant_id)
+    sections = fetch_collection_data("sections", tenant_id)
+    guests = fetch_collection_data("vaquinha_guests", tenant_id, params={"sort": "-created_at"})
     
-    settings_list = fetch_collection_data(api_url, "vaquinha_settings", tenant_id)
+    settings_list = fetch_collection_data("vaquinha_settings", tenant_id)
     settings = settings_list[0] if settings_list else {}
     
+    # URL para assets (imagens) - Pode ser diferente da API interna
+    assets_url = os.environ.get("DIRECTUS_ASSETS_URL", DIRECTUS_URL)
+
     return render_template(
         "vaquinha.html", 
         tenant=tenant, 
@@ -96,30 +110,33 @@ def festa_view(slug):
         guests_confirmed=[g for g in guests if g.get('status') == 'CONFIRMED'],
         guests_all=guests, 
         vaquinha_settings=settings,
-        directus_external_url=DIRECTUS_URL_EXTERNAL,
+        directus_external_url=assets_url,
         current_slug=slug
     )
 
 # 3. API - CRIAR NOVA FESTA
 @app.route('/api/create_tenant', methods=['POST'])
 def create_tenant():
-    ADMIN_TOKEN = DIRECTUS_TOKEN_FIXED
-    api_url = get_directus_url()
-    
     try:
         data = request.get_json()
         raw_slug = data.get('subdomain', '').lower()
+        # Regex mais restritiva para evitar slugs inválidos
         slug = re.sub(r'[^a-z0-9-]', '', raw_slug)
         
         if not slug: return jsonify({"status": "error", "message": "Link inválido"}), 400
 
-        headers = {"Authorization": f"Bearer {ADMIN_TOKEN}", "Content-Type": "application/json"}
+        headers = {"Authorization": f"Bearer {DIRECTUS_TOKEN}", "Content-Type": "application/json"}
 
         # Verifica duplicidade
-        check = requests.get(f"{api_url}/items/tenants", params={"filter[subdomain][_eq]": slug}, headers=headers, verify=False)
+        check = requests.get(
+            f"{DIRECTUS_URL}/items/tenants", 
+            params={"filter[subdomain][_eq]": slug}, 
+            headers=headers, 
+            verify=VERIFY_SSL
+        )
         
         if check.status_code == 401:
-             return jsonify({"status": "error", "message": "ERRO FATAL: Token do Directus Inválido."}), 500
+             return jsonify({"status": "error", "message": "Erro de Permissão no Servidor (Token Inválido)."}), 500
              
         if check.json().get('data'):
              return jsonify({"status": "error", "message": "Este nome já existe."}), 400
@@ -138,17 +155,18 @@ def create_tenant():
             "template_name": "vaquinha"
         }
         
-        resp = requests.post(f"{api_url}/items/tenants", headers=headers, json=tenant_payload, verify=False)
+        resp = requests.post(f"{DIRECTUS_URL}/items/tenants", headers=headers, json=tenant_payload, verify=VERIFY_SSL)
+        
         if resp.status_code != 200:
             return jsonify({"status": "error", "message": f"Erro DB: {resp.text}"}), 500
 
         new_id = resp.json()['data']['id']
         
         # Cria User
-        requests.post(f"{api_url}/items/users", headers=headers, json={
+        requests.post(f"{DIRECTUS_URL}/items/users", headers=headers, json={
             "tenant_id": new_id, "email": data.get('email'), 
             "password_hash": data.get('password'), "role": "Loja Admin"
-        }, verify=False)
+        }, verify=VERIFY_SSL)
         
         return jsonify({
             "status": "success",
@@ -159,19 +177,24 @@ def create_tenant():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# 4. API - APROVAR e 5. CONFIRMAR (Mantidos iguais e funcionais)
+# 4. API - APROVAR GUEST
 @app.route('/api/approve_guest', methods=['POST'])
 def approve_guest():
-    api_url = get_directus_url()
     try:
         data = request.get_json()
-        requests.patch(f"{api_url}/items/vaquinha_guests/{data.get('guest_id')}", json={"status": "CONFIRMED"}, verify=False)
+        headers = {"Authorization": f"Bearer {DIRECTUS_TOKEN}"}
+        requests.patch(
+            f"{DIRECTUS_URL}/items/vaquinha_guests/{data.get('guest_id')}", 
+            json={"status": "CONFIRMED"}, 
+            headers=headers,
+            verify=VERIFY_SSL
+        )
         return jsonify({"status": "success"}), 200
     except Exception as e: return jsonify({"status": "error", "message": str(e)}), 500
 
+# 5. API - CONFIRMAR PRESENÇA
 @app.route('/api/confirm_vaquinha', methods=['POST'])
 def confirm_vaquinha():
-    api_url = get_directus_url()
     guest_name = request.form.get('name')
     guest_email = request.form.get('email')
     slug_origem = request.form.get('origin_slug')
@@ -180,7 +203,13 @@ def confirm_vaquinha():
     if not slug_origem: return "Erro: Link inválido", 400
 
     try:
-        t_resp = requests.get(f"{api_url}/items/tenants", params={"filter[subdomain][_eq]": slug_origem}, verify=False)
+        headers = {"Authorization": f"Bearer {DIRECTUS_TOKEN}"}
+        t_resp = requests.get(
+            f"{DIRECTUS_URL}/items/tenants", 
+            params={"filter[subdomain][_eq]": slug_origem}, 
+            headers=headers,
+            verify=VERIFY_SSL
+        )
         tenant_id = t_resp.json()['data'][0]['id']
     except: return "Evento não encontrado", 404
 
@@ -188,16 +217,22 @@ def confirm_vaquinha():
     if proof_file:
         try:
             files = {'file': (proof_file.filename, proof_file.stream, proof_file.mimetype)}
-            up = requests.post(f"{api_url}/files", files=files, verify=False)
+            # O upload de arquivo requer headers limpos ou específicos, requests lida com multipart se não passarmos content-type manual
+            # Mas precisamos do Auth
+            auth_header = {"Authorization": f"Bearer {DIRECTUS_TOKEN}"} 
+            up = requests.post(f"{DIRECTUS_URL}/files", files=files, headers=auth_header, verify=VERIFY_SSL)
             if up.status_code in [200, 201]: file_id = up.json()['data']['id']
-        except: pass
+        except Exception as e: 
+            print(f"Erro upload: {e}")
 
-    requests.post(f"{api_url}/items/vaquinha_guests", json={
+    # Salva convidado
+    requests.post(f"{DIRECTUS_URL}/items/vaquinha_guests", json={
         "tenant_id": tenant_id, "name": guest_name, "email": guest_email, 
         "payment_proof_url": file_id, "status": "PENDING"
-    }, verify=False)
+    }, headers=headers, verify=VERIFY_SSL)
     
     return f"""<body style="font-family:sans-serif; text-align:center; padding:50px;"><h1 style="color:green">Sucesso!</h1><a href="/festa/{slug_origem}">Voltar</a></body>"""
 
 if __name__ == '__main__':
+    # Em produção no Dokploy, o Gunicorn que vai rodar isso, mas deixamos aqui para teste local
     app.run(host='0.0.0.0', port=5000)
