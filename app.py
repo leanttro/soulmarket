@@ -41,7 +41,7 @@ if not VERIFY_SSL:
 
 # --- IMPORTANTE: ID DA PERMISSÃO (ROLE) NO DIRECTUS ---
 # Copie o ID da role "Loja Admin" na URL do Directus e cole abaixo
-USER_ROLE_ID = "SUBSTITUA_PELO_ID_DA_ROLE_AQUI" 
+USER_ROLE_ID = "qJ-8QjA3YlH-F8J27QMUvt4iMe7ku-nH" 
 
 # =========================================================================
 # 2. FUNÇÕES AUXILIARES
