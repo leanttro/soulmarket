@@ -34,7 +34,6 @@ VERIFY_SSL = os.environ.get("VERIFY_SSL", "true").lower() == "true"
 if not VERIFY_SSL:
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# ID da role (Mantido conforme solicitado)
 USER_ROLE_ID = "92676066-7506-4c16-9177-3bc0a7530b30" 
 
 # =========================================================================
@@ -54,6 +53,8 @@ def directus_request(method, endpoint, data=None, params=None):
             r = requests.post(url, json=data, headers=headers, verify=VERIFY_SSL, timeout=10)
         elif method == 'PATCH':
             r = requests.patch(url, json=data, headers=headers, verify=VERIFY_SSL, timeout=10)
+        elif method == 'DELETE':
+            r = requests.delete(url, headers=headers, verify=VERIFY_SSL, timeout=10)
         
         try:
             return r.json()
@@ -68,6 +69,7 @@ def directus_request(method, endpoint, data=None, params=None):
 # =========================================================================
 
 @app.route('/')
+@app.route('/confras.html') # ADICIONADO PARA O LINK FUNCIONAR
 def home():
     return render_template("confras.html")
 
@@ -76,8 +78,8 @@ def login_page():
     return render_template('login.html')
 
 @app.route('/admin.html')
-def admin_page_direct():
-    return render_template('admin.html')
+def admin_page_redirect():
+    return redirect(url_for('login_page'))
 
 @app.route('/admin')
 def admin_panel():
@@ -85,13 +87,11 @@ def admin_panel():
     if not email_param:
         return redirect(url_for('login_page'))
 
-    # Busca o tenant pelo e-mail
     t_data = directus_request('GET', '/items/tenants', params={"filter[email][_eq]": email_param})
     
     if not t_data or not t_data.get('data'):
          return "<h1>Painel não encontrado ou e-mail inválido.</h1>", 404
     
-    # Pega o primeiro tenant encontrado (mesmo se houver duplicados)
     tenant = t_data['data'][0]
     
     guests_req = directus_request('GET', '/items/vaquinha_guests', params={
@@ -139,7 +139,6 @@ def festa_view(slug):
 # 4. API (BACKEND)
 # =========================================================================
 
-# --- [MODIFICADO] ROTA DE LOGIN VIA TABELA TENANTS ---
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.json
@@ -150,22 +149,15 @@ def login():
         return jsonify({"message": "Preencha e-mail e senha"}), 400
 
     try:
-        # 1. Busca na tabela Tenants pelo e-mail
-        # Nota: filter[email][_eq] busca exato
         resp = directus_request('GET', '/items/tenants', params={'filter[email][_eq]': email})
         
         if resp and resp.get('data') and len(resp['data']) > 0:
-            # Pega o primeiro usuário encontrado
             user = resp['data'][0]
-            
-            # 2. Verifica se a senha salva na coluna 'senha' bate com a enviada
-            # (Comparação simples texto-texto conforme solicitado)
             stored_pass = user.get('senha')
             
             if stored_pass == password:
-                # Login Sucesso
                 return jsonify({
-                    "token": "session_valid", # Token fictício, já que validamos direto no banco
+                    "token": "session_valid",
                     "email": email,
                     "tenant_id": user['id']
                 })
@@ -178,7 +170,6 @@ def login():
         print(f"Erro Login: {e}")
         return jsonify({"message": "Erro no servidor."}), 500
 
-# --- UPLOAD DE IMAGEM ---
 @app.route('/api/confirm_vaquinha', methods=['POST'])
 def confirm_vaquinha():
     origin_slug = request.form.get('origin_slug')
@@ -236,7 +227,6 @@ def create_preference():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# --- [MODIFICADO] CRIAÇÃO DE TENANT SALVANDO SENHA NA TABELA ---
 @app.route('/api/create_tenant_free', methods=['POST'])
 def create_tenant_free():
     data = request.get_json()
@@ -249,7 +239,7 @@ def create_tenant_free():
         "subdomain": slug,
         "email": data.get('email'),
         "pix_key": data.get('pix_key'),
-        "senha": data.get('password'), # <--- SALVANDO SENHA AQUI AGORA
+        "senha": data.get('password'),
         "pix_owner_name": "Organizador",
         "status": "active",
         "plan_type": "free",
@@ -260,8 +250,6 @@ def create_tenant_free():
     
     if resp and resp.get('data'):
         new_id = resp['data']['id']
-        
-        # Tentativa de criar usuário Directus (Mantido, mas sem travar se falhar)
         try:
             directus_request('POST', '/users', data={
                 "first_name": "Admin",
@@ -272,7 +260,7 @@ def create_tenant_free():
                 "tenant_id": new_id
             })
         except:
-            pass # Ignora erro na criação do user, pois vamos usar a tabela Tenants pro login
+            pass 
         
         return jsonify({
             "status": "success",
