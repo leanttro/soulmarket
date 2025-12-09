@@ -15,7 +15,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
-        /* Mantendo a variável caso use em outros lugares, mas o botão principal usará o verde do logo */
         :root {
             --brand-primary: {{ tenant.primary_color | default('#10B981') }}; 
         }
@@ -55,7 +54,7 @@
                 Divisão & Rateio
             </h1>
             <p class="text-gray-500 dark:text-gray-400">
-                Organizado por <span class="font-semibold text-gray-800 dark:text-gray-200">{{ tenant.pix_owner_name | default('Organizador') }}</span>
+                Organizado por <span class="font-semibold text-gray-800 dark:text-gray-200">{{ tenant.company_name }}</span>
             </p>
         </div>
 
@@ -99,8 +98,7 @@
                         </button>
                     </div>
                     <div id="copyFeedback" class="h-4 text-xs text-emerald-500 font-bold text-right mt-1 opacity-0 transition-opacity">Copiado!</div>
-                    
-                    </div>
+                </div>
             </div>
 
             {# COLUNA 2: FORMULÁRIO #}
