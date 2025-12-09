@@ -15,14 +15,14 @@ app = Flask(__name__)
 # =========================================================================
 
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "chave_secreta_padrao")
-BASE_URL = os.environ.get("APP_BASE_URL", "https://confras.leanttro.com")
+BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:5000") # Ajuste para local se precisar
 
-# Directus
-DIRECTUS_TOKEN = os.environ.get("DIRECTUS_TOKEN")
-DIRECTUS_URL = os.environ.get("DIRECTUS_URL", "https://directus.leanttro.com")
+# Directus (CONFIGURE SEUS DADOS AQUI SE NÃO ESTIVER USANDO ENV)
+DIRECTUS_TOKEN = os.environ.get("DIRECTUS_TOKEN", "SEU_TOKEN_DIRECTUS")
+DIRECTUS_URL = os.environ.get("DIRECTUS_URL", "https://seu-diretus.com")
 
-# Mercado Pago
-MP_ACCESS_TOKEN = os.environ.get("MP_ACCESS_TOKEN")
+# Mercado Pago (CONFIGURE SEU TOKEN AQUI)
+MP_ACCESS_TOKEN = os.environ.get("MP_ACCESS_TOKEN", "TEST-seu-token-aqui") 
 if MP_ACCESS_TOKEN:
     sdk = mercadopago.SDK(MP_ACCESS_TOKEN)
 else:
@@ -39,8 +39,7 @@ VERIFY_SSL = os.environ.get("VERIFY_SSL", "true").lower() == "true"
 if not VERIFY_SSL:
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# --- IMPORTANTE: ID DA PERMISSÃO (ROLE) NO DIRECTUS ---
-# Copie o ID da role "Loja Admin" na URL do Directus e cole abaixo
+# ID da role "Loja Admin" no Directus
 USER_ROLE_ID = "92676066-7506-4c16-9177-3bc0a7530b30" 
 
 # =========================================================================
@@ -113,12 +112,11 @@ def festa_view(slug):
 
     tenant = data['data'][0]
     
-    # 2. LÓGICA DE REDIRECIONAMENTO PARA ADMIN
-    # Se a URL tiver ?admin=token, redireciona para o painel correto usando o email do tenant
+    # 2. REDIRECIONAMENTO PARA ADMIN
     if request.args.get('admin'):
         return redirect(url_for('admin_panel', email=tenant['email']))
 
-    # 3. Se não for admin, carrega a festa normal
+    # 3. Carrega a festa normal
     guests_data = directus_request('GET', '/items/vaquinha_guests', params={
         "filter[tenant_id][_eq]": tenant['id'],
         "sort": "-created_at"
@@ -138,7 +136,6 @@ def festa_view(slug):
 
 @app.route('/admin')
 def admin_panel():
-    # Painel do Organizador
     email_param = request.args.get('email')
     
     if not email_param:
@@ -151,7 +148,6 @@ def admin_panel():
 
     tenant = t_data['data'][0]
     
-    # Busca convidados
     guests_req = directus_request('GET', '/items/vaquinha_guests', params={
         "filter[tenant_id][_eq]": tenant['id'],
         "sort": "-created_at"
@@ -171,6 +167,43 @@ def admin_panel():
 # =========================================================================
 # 4. API - CRIAÇÃO E PAGAMENTOS
 # =========================================================================
+
+# --- [ADICIONADO] ROTA QUE FALTAVA PARA O MERCADO PAGO ---
+@app.route('/api/create_preference', methods=['POST'])
+def create_preference():
+    try:
+        if not MP_ACCESS_TOKEN:
+            return jsonify({"error": "Configuração de pagamento ausente"}), 500
+
+        data = request.json
+        plan = data.get('plan')
+        
+        if plan == 'plus':
+            title = "Plano PIX Plus"
+            price = 9.99
+        elif plan == 'pro':
+            title = "Plano PIX Pro"
+            price = 17.99
+        else:
+            return jsonify({"error": "Plano inválido"}), 400
+
+        preference_data = {
+            "items": [{"title": title, "quantity": 1, "unit_price": price, "currency_id": "BRL"}],
+            "back_urls": {
+                "success": f"{BASE_URL}/admin", 
+                "failure": f"{BASE_URL}",
+                "pending": f"{BASE_URL}"
+            },
+            "auto_return": "approved"
+        }
+
+        preference_response = sdk.preference().create(preference_data)
+        preference = preference_response["response"]
+        return jsonify({"id": preference["id"]})
+
+    except Exception as e:
+        print(f"Erro MP: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/create_tenant_free', methods=['POST'])
 def create_tenant_free():
@@ -207,10 +240,9 @@ def create_tenant_free():
             "role": USER_ROLE_ID 
         })
         
-        # Retorna sucesso com token para login automático no redirecionamento
         return jsonify({
             "status": "success",
-            "url": f"{BASE_URL}/festa/{slug}",
+            "url": f"/festa/{slug}", # Ajustado para sua rota interna
             "admin_token": "autologin" 
         })
     
@@ -264,7 +296,6 @@ def webhook_payment():
                             "role": USER_ROLE_ID
                         })
                         
-                        # Manda link direto para o admin
                         admin_link = f"{BASE_URL}/admin?email={payer_email}"
                         send_welcome_email(payer_email, admin_link, temp_password)
                         return jsonify({"status": "created"}), 201
@@ -279,16 +310,29 @@ def webhook_payment():
 # 5. API - AÇÕES DE USUÁRIO E ADMIN
 # =========================================================================
 
+# --- [MODIFICADO] PARA RETORNAR JSON (AJUSTE PARA O LOADING JS) ---
 @app.route('/api/confirm_vaquinha', methods=['POST'])
 def confirm_vaquinha():
+    # Tenta pegar do form, se não, tenta do referrer como fallback
     origin_slug = request.form.get('origin_slug')
-    if not origin_slug and request.referrer:
-        origin_slug = request.referrer.split('/')[-1].split('?')[0] # Remove query params
     
-    if not origin_slug: return "Link inválido", 400
+    # Lógica de fallback se o hidden input falhar
+    if not origin_slug and request.referrer:
+        # Ex: http://site.com/festa/churras -> churras
+        parts = request.referrer.split('/')
+        if 'festa' in parts:
+            idx = parts.index('festa')
+            if len(parts) > idx + 1:
+                origin_slug = parts[idx + 1].split('?')[0]
+    
+    if not origin_slug: 
+        return jsonify({"status": "error", "message": "Link inválido"}), 400
 
+    # Busca o tenant
     t_data = directus_request('GET', '/items/tenants', params={"filter[subdomain][_eq]": origin_slug})
-    if not t_data or not t_data.get('data'): return "Evento 404", 404
+    if not t_data or not t_data.get('data'): 
+        return jsonify({"status": "error", "message": "Evento não encontrado"}), 404
+    
     tenant = t_data['data'][0]
     
     # Upload
@@ -296,20 +340,31 @@ def confirm_vaquinha():
     proof_file = request.files.get('proof')
     file_id = None
     
-    if proof_file:
-        files = {'file': (proof_file.filename, proof_file.stream, proof_file.mimetype)}
-        h_auth = {"Authorization": f"Bearer {DIRECTUS_TOKEN}"}
-        up = requests.post(f"{DIRECTUS_URL}/files", files=files, headers=h_auth, verify=VERIFY_SSL)
-        if up.status_code in [200, 201]: file_id = up.json()['data']['id']
+    try:
+        if proof_file:
+            files = {'file': (proof_file.filename, proof_file.stream, proof_file.mimetype)}
+            h_auth = {"Authorization": f"Bearer {DIRECTUS_TOKEN}"}
+            # Upload direto via requests (para lidar com multipart form data melhor que o wrapper)
+            up = requests.post(f"{DIRECTUS_URL}/files", files=files, headers=h_auth, verify=VERIFY_SSL)
+            if up.status_code in [200, 201]: 
+                file_id = up.json()['data']['id']
+            else:
+                return jsonify({"status": "error", "message": "Erro no upload da imagem"}), 500
 
-    directus_request('POST', '/items/vaquinha_guests', data={
-        "tenant_id": tenant['id'],
-        "name": guest_name,
-        "payment_proof_url": file_id,
-        "status": "PENDING"
-    })
+        # Cria o convidado
+        directus_request('POST', '/items/vaquinha_guests', data={
+            "tenant_id": tenant['id'],
+            "name": guest_name,
+            "payment_proof_url": file_id,
+            "status": "PENDING"
+        })
 
-    return redirect(f"/festa/{origin_slug}")
+        # RETORNA JSON para o Javascript funcionar
+        return jsonify({"status": "success", "message": "Comprovante enviado com sucesso!"})
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 
 @app.route('/api/admin/update_guest', methods=['POST'])
 def admin_update_guest():
@@ -327,4 +382,4 @@ def admin_update_guest():
     return jsonify({"error": "Falha ao atualizar"}), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000, debug=True)
