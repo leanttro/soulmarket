@@ -1,134 +1,236 @@
 <!DOCTYPE html>
-<html lang="pt-br" class="dark">
+<html lang="pt-br" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Start Your Event | Leanttro</title>
+    <title>Divide o PIX | A forma mais fácil de organizar vaquinhas e eventos</title>
+    <meta name="description" content="Crie links de pagamento personalizados para churrascos, presentes, viagens e eventos corporativos. Receba via PIX direto na sua conta.">
+    
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; transition: background-color 0.3s, color 0.3s; }
-        :root { --primary: #10B981; } 
-        .input-theme {
-            transition: all 0.3s ease;
+        body { font-family: 'Inter', sans-serif; }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
-        .input-theme:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
-            outline: none;
+        .gradient-text {
+            background: linear-gradient(to right, #34d399, #2dd4bf);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
-
-        /* LIGHT MODE (Padrão Tailwind, mas definido para contexto) */
-        .input-theme { @apply bg-white border-zinc-300 text-zinc-900 placeholder-zinc-400; }
-        
-        /* DARK MODE */
-        .dark .input-theme { @apply bg-zinc-700 border-zinc-600 text-white placeholder-zinc-500; }
     </style>
 </head>
-<body class="bg-white dark:bg-zinc-900 flex items-center justify-center min-h-screen relative overflow-hidden">
+<body class="bg-zinc-950 text-white selection:bg-emerald-500 selection:text-white overflow-x-hidden">
 
-    <div class="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 dark:block hidden">
-        <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-900 rounded-full blur-[120px] opacity-20"></div>
-        <div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-900 rounded-full blur-[120px] opacity-20"></div>
+    <div class="fixed inset-0 overflow-hidden pointer-events-none -z-10">
+        <div class="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-emerald-500/10 rounded-full blur-[120px]"></div>
+        <div class="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-600/10 rounded-full blur-[120px]"></div>
     </div>
 
-    <div class="w-full max-w-lg p-10 rounded-2xl shadow-2xl relative z-10 
-                bg-zinc-50 dark:bg-zinc-800 
-                shadow-zinc-300/50 dark:shadow-zinc-950/50">
-        <div class="text-center mb-10">
-            <h2 class="text-3xl font-semibold text-zinc-900 dark:text-white tracking-tight mb-2">
-                Leanttro
-            </h2>
-            <p class="text-zinc-500 dark:text-zinc-400 text-sm font-light">Plataforma de Gestão de Eventos.</p>
+    <nav class="border-b border-white/5 bg-zinc-950/50 backdrop-blur-md sticky top-0 z-50">
+        <div class="container mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 bg-gradient-to-br from-emerald-400 to-teal-600 rounded-lg flex items-center justify-center font-bold text-zinc-900">$</div>
+                <span class="font-bold text-lg tracking-tight">Divide o PIX</span>
+            </div>
+            <div class="hidden md:flex gap-6 text-sm text-zinc-400 font-medium">
+                <a href="#como-funciona" class="hover:text-emerald-400 transition">Como Funciona</a>
+                <a href="#precos" class="hover:text-emerald-400 transition">Planos</a>
+            </div>
+            <a href="#criar" class="text-sm font-semibold bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full border border-white/10 transition">
+                Login
+            </a>
         </div>
+    </nav>
+
+    <main class="container mx-auto px-4 py-12 md:py-20 flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
         
-        <form id="creationForm" class="space-y-6">
-            <div class="space-y-1">
-                <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Nome do Evento</label>
-                <input type="text" id="company_name" required placeholder="Ex: Festa de Final de Ano" class="mt-1 block w-full p-4 rounded-lg input-theme text-sm">
+        <div class="lg:w-1/2 space-y-8 text-center lg:text-left">
+            <div class="inline-flex items-center px-3 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-2">
+                🚀 Lançamento Oficial
             </div>
-
-            <div class="space-y-1">
-                <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">URL Personalizada</label>
-                <div class="mt-1 flex rounded-lg overflow-hidden border focus-within:ring-2 focus-within:ring-emerald-500 transition-colors border-zinc-300 dark:border-zinc-600">
-                    <span class="inline-flex items-center px-4 text-sm border-r bg-zinc-100 text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400 dark:border-zinc-600">
-                        confras.leanttro.com/festa/
-                    </span>
-                    <input type="text" id="subdomain" required placeholder="meu-evento" class="flex-1 block w-full p-4 text-sm outline-none font-medium input-theme border-none">
-                </div>
-            </div>
+            <h1 class="text-4xl md:text-6xl font-extrabold leading-tight">
+                Nunca foi tão fácil <br>
+                <span class="gradient-text">organizar o rateio.</span>
+            </h1>
+            <p class="text-lg text-zinc-400 leading-relaxed max-w-xl mx-auto lg:mx-0">
+                Do churrasco de domingo à festa da firma. Crie um link personalizado, receba os comprovantes e gerencie quem pagou. 
+                <strong class="text-zinc-200">Tudo automático.</strong>
+            </p>
             
-            <div class="space-y-1">
-                <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Chave PIX (Recebimento)</label>
-                <input type="text" id="pix_key" required placeholder="CPF, Email ou Aleatória" class="mt-1 block w-full p-4 rounded-lg input-theme text-sm font-mono">
+            <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start text-sm text-zinc-500">
+                <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    Recebimento Instantâneo
+                </div>
+                <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    Painel de Gestão
+                </div>
+            </div>
+        </div>
+
+        <div id="criar" class="lg:w-1/2 w-full max-w-md mx-auto relative group">
+            
+            <div class="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl blur opacity-30 group-hover:opacity-50 transition duration-1000"></div>
+            
+            <div class="bg-white p-8 rounded-2xl relative shadow-2xl border border-zinc-200">
+                <div class="mb-6">
+                    <h3 class="text-xl font-bold text-zinc-900 mb-1">Crie sua conta Grátis</h3>
+                    <p class="text-xs text-zinc-500">Comece em menos de 30 segundos.</p>
+                </div>
+
+                <form id="creationForm" class="space-y-5">
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold text-zinc-500 uppercase">Nome da Vaquinha / Evento</label>
+                        <input type="text" id="company_name" required placeholder="Ex: Churras da Turma" 
+                            class="w-full bg-white border border-zinc-300 text-zinc-900 rounded-lg px-4 py-3 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition placeholder-zinc-400">
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold text-zinc-500 uppercase">Link Personalizado</label>
+                        <div class="flex rounded-lg overflow-hidden border border-zinc-300 focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition">
+                            <span class="bg-zinc-100 text-zinc-500 px-3 py-3 text-xs flex items-center border-r border-zinc-300 select-none font-medium">
+                                divideopix.com.br/
+                            </span>
+                            <input type="text" id="subdomain" required placeholder="festa-do-joao" 
+                                class="flex-1 bg-white text-zinc-900 px-3 py-3 text-sm outline-none placeholder-zinc-400 font-medium">
+                        </div>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold text-zinc-500 uppercase flex justify-between">
+                            Chave PIX
+                            <span class="text-[10px] text-emerald-600 font-bold">Onde você vai receber</span>
+                        </label>
+                        <input type="text" id="pix_key" required placeholder="CPF, E-mail ou Celular" 
+                            class="w-full bg-white border border-zinc-300 text-zinc-900 rounded-lg px-4 py-3 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition placeholder-zinc-400 font-mono">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-zinc-500 uppercase">Seu E-mail</label>
+                            <input type="email" id="email" required placeholder="admin@email.com"
+                                class="w-full bg-white border border-zinc-300 text-zinc-900 rounded-lg px-4 py-3 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition placeholder-zinc-400">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-zinc-500 uppercase">Criar Senha</label>
+                            <input type="password" id="password" required placeholder="******"
+                                class="w-full bg-white border border-zinc-300 text-zinc-900 rounded-lg px-4 py-3 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition placeholder-zinc-400">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-600/30 transform transition hover:-translate-y-0.5 active:translate-y-0 mt-2">
+                        Criar Vaquinha Grátis
+                    </button>
+                    
+                    <p class="text-[10px] text-center text-zinc-400">
+                        Ao continuar, você concorda com nossos termos. Dados protegidos.
+                    </p>
+                </form>
+
+                <div id="message" class="mt-4 hidden animate-fade-in">
+                    </div>
+            </div>
+        </div>
+    </main>
+
+    <section id="como-funciona" class="border-t border-white/5 bg-zinc-900/30 py-20">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-16">
+                <h2 class="text-2xl md:text-3xl font-bold mb-4">Como funciona?</h2>
+                <p class="text-zinc-400 text-sm md:text-base">Simplificamos o processo chato de cobrar as pessoas.</p>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="space-y-1">
-                    <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Admin E-mail</label>
-                    <input type="email" id="email" required class="mt-1 block w-full p-4 rounded-lg input-theme text-sm">
+            <div class="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                <div class="p-6 rounded-2xl bg-zinc-800/20 border border-white/5 hover:border-emerald-500/30 transition text-center group">
+                    <div class="w-12 h-12 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4 text-emerald-500 font-bold text-xl group-hover:scale-110 transition">1</div>
+                    <h3 class="font-semibold text-white mb-2">Crie o Evento</h3>
+                    <p class="text-sm text-zinc-500">Defina o nome, a chave PIX e personalize seu link exclusivo em segundos.</p>
                 </div>
+                <div class="p-6 rounded-2xl bg-zinc-800/20 border border-white/5 hover:border-emerald-500/30 transition text-center group">
+                    <div class="w-12 h-12 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4 text-emerald-500 font-bold text-xl group-hover:scale-110 transition">2</div>
+                    <h3 class="font-semibold text-white mb-2">Compartilhe o Link</h3>
+                    <p class="text-sm text-zinc-500">Envie no grupo do WhatsApp. Seus amigos anexam o comprovante direto na página.</p>
+                </div>
+                <div class="p-6 rounded-2xl bg-zinc-800/20 border border-white/5 hover:border-emerald-500/30 transition text-center group">
+                    <div class="w-12 h-12 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4 text-emerald-500 font-bold text-xl group-hover:scale-110 transition">3</div>
+                    <h3 class="font-semibold text-white mb-2">Controle Total</h3>
+                    <p class="text-sm text-zinc-500">Veja quem pagou e quem está pendente em um painel simples e organizado.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="precos" class="py-20 relative">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-12">
+                <h2 class="text-2xl md:text-3xl font-bold mb-4">Escolha seu plano</h2>
+                <p class="text-zinc-400">Comece grátis e cresça conforme sua necessidade.</p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto items-center">
                 
-                <div class="space-y-1">
-                    <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Senha Admin</label>
-                    <input type="password" id="password" required class="mt-1 block w-full p-4 rounded-lg input-theme text-sm">
+                <div class="p-6 rounded-2xl bg-zinc-900 border border-zinc-800 flex flex-col relative overflow-hidden h-full md:hover:scale-105 transition duration-300">
+                    <h3 class="text-sm font-medium text-emerald-400 mb-2 uppercase tracking-wide">Social</h3>
+                    <div class="text-3xl font-bold text-white mb-4">Grátis</div>
+                    <p class="text-xs text-zinc-500 mb-6 border-b border-zinc-800 pb-4">Para divisões rápidas entre amigos.</p>
+                    
+                    <ul class="space-y-3 text-sm text-zinc-400 mb-8 flex-1">
+                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> <b>Até 20 pessoas</b></li>
+                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Link Personalizado</li>
+                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Lista de Presença</li>
+                    </ul>
+                    <a href="#criar" class="block w-full py-2.5 rounded-lg border border-zinc-700 text-center text-sm font-medium hover:bg-zinc-800 transition">Criar Grátis</a>
                 </div>
+
+                <div class="p-6 rounded-2xl bg-zinc-900 border border-blue-500/30 flex flex-col relative overflow-hidden h-full md:scale-105 shadow-xl shadow-blue-900/10 z-10">
+                    <div class="absolute top-0 right-0 bg-blue-600/20 text-blue-400 text-[10px] font-bold px-3 py-1 rounded-bl-lg uppercase">Popular</div>
+                    <h3 class="text-sm font-medium text-blue-400 mb-2 uppercase tracking-wide">PIX Plus</h3>
+                    <div class="text-3xl font-bold text-white mb-1">R$ 9,99 <span class="text-sm font-normal text-zinc-500">/evento</span></div>
+                    <p class="text-xs text-zinc-500 mb-6 border-b border-zinc-800 pb-4">Pagamento único.</p>
+                    
+                    <ul class="space-y-3 text-sm text-zinc-300 mb-8 flex-1">
+                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> <b>Até 50 pessoas</b></li>
+                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Cores do seu Evento</li>
+                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Controle de Itens</li>
+                    </ul>
+                    <a href="#criar" class="block w-full py-2.5 rounded-lg bg-blue-600 text-white text-center text-sm font-bold hover:bg-blue-500 transition">Escolher Plus</a>
+                </div>
+
+                <div class="p-6 rounded-2xl bg-gradient-to-b from-zinc-800 to-zinc-900 border border-emerald-500/30 flex flex-col relative overflow-hidden h-full md:hover:scale-105 transition duration-300">
+                    <h3 class="text-sm font-medium text-emerald-400 mb-2 uppercase tracking-wide">PIX Pro</h3>
+                    <div class="text-3xl font-bold text-white mb-1">R$ 17,99 <span class="text-sm font-normal text-zinc-500">/evento</span></div>
+                    <p class="text-xs text-zinc-500 mb-6 border-b border-zinc-700 pb-4">Para organizadores exigentes.</p>
+                    
+                    <ul class="space-y-3 text-sm text-zinc-300 mb-8 flex-1">
+                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> <b>Até 100 pessoas</b></li>
+                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Upload de Comprovante</li>
+                        <li class="flex items-center gap-2"><svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Painel Admin Completo</li>
+                    </ul>
+                    <a href="#criar" class="block w-full py-2.5 rounded-lg bg-emerald-600 text-white text-center text-sm font-bold hover:bg-emerald-500 transition shadow-lg shadow-emerald-500/20">Escolher Pro</a>
+                </div>
+
             </div>
             
-            <button type="submit" class="w-full bg-emerald-500 text-white py-4 rounded-lg font-semibold hover:bg-emerald-600 transition-all duration-300 shadow-lg shadow-emerald-500/20 mt-4">
-                Lançar Plataforma
-            </button>
-            
-            <div id="message" class="mt-6 p-4 rounded-lg text-center hidden text-sm transition-all duration-500"></div>
-        </form>
-    </div>
-    
+            <p class="text-center text-zinc-500 text-xs mt-10">Precisa de mais de 100 pessoas? <a href="#" class="underline hover:text-white">Fale conosco para o plano Enterprise.</a></p>
+        </div>
+    </section>
+
+    <footer class="border-t border-white/5 bg-zinc-950 py-10 text-center">
+        <p class="text-zinc-600 text-sm">© 2024 Divide o PIX. Todos os direitos reservados.</p>
+    </footer>
+
     <script>
-        // --- FUNÇÕES GLOBAIS DE TEMA ---
-        // Função para aplicar tema
-        function applyTheme(theme) {
-            const html = document.documentElement;
-            const icon = document.getElementById('theme-icon');
-            
-            if (theme === 'dark') {
-                html.classList.add('dark');
-                localStorage.theme = 'dark';
-                if (icon) {
-                    // Ícone da Lua (modo escuro ativo)
-                    icon.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>';
-                }
-            } else {
-                html.classList.remove('dark');
-                localStorage.theme = 'light';
-                if (icon) {
-                    // Ícone do Sol (modo claro ativo)
-                    icon.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>';
-                }
-            }
-        }
-
-        // Função para alternar o tema
-        function toggleTheme() {
-            const currentTheme = localStorage.theme === 'dark' ? 'light' : 'dark';
-            applyTheme(currentTheme);
-        }
-
-        // Inicialização do tema ao carregar a página
-        if (localStorage.theme === 'light') {
-            applyTheme('light');
-        } else {
-            // Padrão para Dark se não houver preferência
-            applyTheme('dark');
-        }
-
-        window.toggleTheme = toggleTheme;
-        
-        // --- LÓGICA DO FORMULÁRIO (MANTIDA INTACTA) ---
         document.getElementById('creationForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const btn = e.target.querySelector('button');
             const msg = document.getElementById('message');
+            const originalBtnText = btn.innerText;
             
+            // COLETA DE DADOS
             const data = {
                 company_name: document.getElementById('company_name').value,
                 subdomain: document.getElementById('subdomain').value,
@@ -137,14 +239,13 @@
                 password: document.getElementById('password').value
             };
             
-            btn.disabled = true; btn.innerText = 'Processando...';
-            btn.classList.add('opacity-70', 'cursor-not-allowed');
-            
-            // Adicionando classes de tema para o feedback de mensagem
-            const successClasses = 'bg-emerald-100 text-emerald-800 border-emerald-400 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800 backdrop-blur-sm';
-            const errorClasses = 'bg-red-100 text-red-700 border-red-400 dark:bg-red-900/30 dark:text-red-400 dark:border-red-900/50';
+            // ESTADO DE CARREGAMENTO
+            btn.disabled = true; 
+            btn.innerHTML = '<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Criando ambiente...';
+            btn.classList.add('opacity-80', 'cursor-not-allowed');
 
             try {
+                // CHAMADA PARA API
                 const res = await fetch('/api/create_tenant', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -152,23 +253,34 @@
                 });
                 const json = await res.json();
                 
+                msg.classList.remove('hidden');
+                
                 if (json.status === 'success') {
                     const publicLink = json.url; 
                     const adminLink = `${publicLink}?admin=${json.admin_token}`;
                     
-                    msg.className = `mt-6 p-4 rounded-lg text-center hidden text-sm transition-all duration-500 ${successClasses}`;
-                    msg.classList.remove('hidden');
-
+                    // SUCESSO VISUAL (ADAPTADO PARA FUNDO CLARO)
                     msg.innerHTML = `
-                        <h3 class="font-bold text-base mb-2">Plataforma Criada</h3>
-                        <div class="text-left space-y-3">
-                            <div>
-                                <p class="text-xs text-zinc-600 dark:text-zinc-400 uppercase">Link dos Convidados</p>
-                                <a href="${publicLink}" target="_blank" class="block font-mono text-emerald-600 dark:text-emerald-400 underline truncate hover:text-emerald-300 transition">${publicLink}</a>
+                        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-6">
+                            <div class="flex items-center gap-3 mb-4">
+                                <div class="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold">✓</div>
+                                <h3 class="font-bold text-emerald-900 text-lg">Sucesso!</h3>
                             </div>
-                            <div>
-                                <p class="text-xs text-red-600 dark:text-red-400 uppercase font-bold">⚠️ Seu Link Admin (Privado)</p>
-                                <a href="${adminLink}" target="_blank" class="block font-mono text-zinc-700 dark:text-zinc-300 underline truncate text-xs hover:text-white transition">${adminLink}</a>
+                            
+                            <div class="space-y-4 text-left">
+                                <div class="bg-white p-3 rounded-lg border border-zinc-200">
+                                    <p class="text-[10px] text-zinc-500 uppercase font-bold mb-1">Link para convidados</p>
+                                    <a href="${publicLink}" target="_blank" class="text-emerald-600 font-mono text-sm underline truncate block hover:text-emerald-500 transition">${publicLink}</a>
+                                </div>
+
+                                <div class="bg-white p-3 rounded-lg border border-red-100">
+                                    <p class="text-[10px] text-red-500 uppercase font-bold mb-1">Seu Link Admin (Salve Agora)</p>
+                                    <a href="${adminLink}" target="_blank" class="text-zinc-600 font-mono text-xs underline truncate block hover:text-zinc-900 transition">${adminLink}</a>
+                                </div>
+                                
+                                <a href="${adminLink}" class="block w-full text-center py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-bold transition mt-2">
+                                    Acessar Painel
+                                </a>
                             </div>
                         </div>
                     `;
@@ -177,12 +289,16 @@
                     throw new Error(json.message);
                 }
             } catch (err) {
-                msg.className = `mt-6 p-4 rounded-lg text-center hidden text-sm transition-all duration-500 ${errorClasses}`;
-                msg.classList.remove('hidden');
-                msg.innerText = err.message || 'Erro ao criar.';
+                // ERRO VISUAL
+                msg.innerHTML = `
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-600 text-sm text-center">
+                        ${err.message || 'Ocorreu um erro ao criar.'}
+                    </div>
+                `;
             } finally {
-                btn.disabled = false; btn.innerText = 'Lançar Plataforma';
-                btn.classList.remove('opacity-70', 'cursor-not-allowed');
+                btn.disabled = false; 
+                btn.innerText = originalBtnText;
+                btn.classList.remove('opacity-80', 'cursor-not-allowed');
             }
         });
     </script>
