@@ -69,7 +69,7 @@ def directus_request(method, endpoint, data=None, params=None):
 # =========================================================================
 
 @app.route('/')
-@app.route('/confras.html') # ADICIONADO PARA O LINK FUNCIONAR
+@app.route('/confras.html')
 def home():
     return render_template("confras.html")
 
@@ -198,9 +198,11 @@ def confirm_vaquinha():
             else:
                 return jsonify({"status": "error", "message": "Erro ao salvar imagem."}), 500
 
+        # --- DADOS ATUALIZADOS AQUI ---
         directus_request('POST', '/items/vaquinha_guests', data={
             "tenant_id": tenant['id'],
             "name": request.form.get('name'),
+            "whatsapp": request.form.get('whatsapp'), # <--- NOVO CAMPO
             "payment_proof_url": file_id,
             "status": "PENDING"
         })
