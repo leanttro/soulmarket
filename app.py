@@ -17,8 +17,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "chave_secreta_padrao")
 BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:5000")
 
-# --- ATENÇÃO: Verifique se estes dados estão certos ---
-# Recuperei a URL dos seus prints. Coloque seu TOKEN real abaixo.
+# --- SEUS DADOS RECUPERADOS ---
 DIRECTUS_URL = os.environ.get("DIRECTUS_URL", "https://directus.leanttro.com")
 DIRECTUS_TOKEN = os.environ.get("DIRECTUS_TOKEN", "SEU_TOKEN_AQUI") 
 
@@ -27,7 +26,6 @@ MP_ACCESS_TOKEN = os.environ.get("MP_ACCESS_TOKEN")
 if MP_ACCESS_TOKEN:
     sdk = mercadopago.SDK(MP_ACCESS_TOKEN)
 else:
-    # Cria um SDK fake para não quebrar o app se não tiver token
     class FakeSDK:
         def preference(self): return self
         def create(self, data): return {"response": {"id": "fake_preference_id"}}
@@ -38,9 +36,6 @@ else:
 VERIFY_SSL = os.environ.get("VERIFY_SSL", "true").lower() == "true"
 if not VERIFY_SSL:
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-# ID da role "Loja Admin"
-USER_ROLE_ID = "92676066-7506-4c16-9177-3bc0a7530b30" 
 
 # =========================================================================
 # 2. FUNÇÕES AUXILIARES
@@ -68,10 +63,18 @@ def directus_request(method, endpoint, data=None, params=None):
         print(f"❌ Erro Directus ({endpoint}): {e}")
         return None
 
-def send_welcome_email(to_email, link, senha):
-    if not os.environ.get("SMTP_USER"): return
-    # (Lógica de e-mail mantida, omitida para brevidade se não usada)
-    pass
+# Função nova para achar o ID da Role automaticamente
+def get_admin_role_id():
+    # Tenta buscar roles no Directus
+    roles = directus_request('GET', '/roles')
+    if roles and roles.get('data'):
+        # Tenta achar uma role chamada "Administrator" ou "Admin"
+        for role in roles['data']:
+            if role.get('name') in ['Administrator', 'Admin', 'Administrador']:
+                return role['id']
+        # Se não achar por nome, pega a primeira que tiver acesso App (Admin por padrão)
+        return roles['data'][0]['id']
+    return None
 
 # =========================================================================
 # 3. ROTAS DE PÁGINAS (FRONTEND)
@@ -147,7 +150,6 @@ def festa_view(slug):
 # 4. API (BACKEND)
 # =========================================================================
 
-# --- [NOVO] ROTA DE LOGIN QUE FALTAVA ---
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.json
@@ -177,57 +179,61 @@ def login():
         print(f"Erro Login: {e}")
         return jsonify({"message": "Erro no servidor."}), 500
 
-# --- [CORRIGIDO] UPLOAD DE IMAGEM ---
-@app.route('/api/confirm_vaquinha', methods=['POST'])
-def confirm_vaquinha():
-    origin_slug = request.form.get('origin_slug')
+
+@app.route('/api/create_tenant_free', methods=['POST'])
+def create_tenant_free():
+    data = request.get_json()
+    slug = re.sub(r'[^a-z0-9-]', '', data.get('subdomain', '').lower())
     
-    # Tenta descobrir o slug se não vier no form
-    if not origin_slug and request.referrer:
-        parts = request.referrer.split('/')
-        origin_slug = parts[-1] if parts[-1] else parts[-2]
+    if not slug: return jsonify({"status": "error", "message": "Link inválido"}), 400
 
-    # Busca Tenant
-    t_data = directus_request('GET', '/items/tenants', params={"filter[subdomain][_eq]": origin_slug})
-    if not t_data or not t_data.get('data'): 
-        return jsonify({"status": "error", "message": "Evento não encontrado"}), 404
+    # 1. Cria o Tenant (Evento)
+    tenant_payload = {
+        "company_name": data.get('company_name'),
+        "subdomain": slug,
+        "email": data.get('email'),
+        "pix_key": data.get('pix_key'),
+        "pix_owner_name": "Organizador",
+        "status": "active",
+        "plan_type": "free",
+        "guest_limit": 20
+    }
     
-    tenant = t_data['data'][0]
-    file_id = None
-    proof_file = request.files.get('proof')
+    resp = directus_request('POST', '/items/tenants', data=tenant_payload)
+    
+    if resp and resp.get('data'):
+        new_id = resp['data']['id']
+        
+        # 2. Busca o ID da Role correto automaticamente
+        role_id = get_admin_role_id()
+        if not role_id:
+            # Fallback seguro se falhar
+            print("Erro: Não foi possível encontrar Role ID. Usuário não criado.")
+            return jsonify({"status": "error", "message": "Erro interno de configuração (Role ID)"}), 500
 
-    try:
-        if proof_file:
-            # Lê o arquivo antes de enviar para evitar problemas de stream
-            file_content = proof_file.read()
-            files = {'file': (proof_file.filename, file_content, proof_file.mimetype)}
-            h_auth = {"Authorization": f"Bearer {DIRECTUS_TOKEN}"}
-            
-            # Envia para o Directus
-            up = requests.post(f"{DIRECTUS_URL}/files", files=files, headers=h_auth, verify=VERIFY_SSL)
-            
-            if up.status_code in [200, 201]: 
-                file_id = up.json()['data']['id']
-            else:
-                # Retorna o erro real do Directus para ajudar no debug
-                print(f"Erro Directus: {up.text}")
-                return jsonify({"status": "error", "message": f"Erro ao salvar imagem: {up.text}"}), 500
+        # 3. Cria o Usuário no Directus
+        user_payload = {
+            "first_name": "Admin",
+            "last_name": data.get('company_name'),
+            "email": data.get('email'), 
+            "password": data.get('password'), 
+            "role": role_id, # ID Dinâmico
+            "tenant_id": new_id
+        }
+        
+        user_resp = directus_request('POST', '/users', data=user_payload)
+        
+        if not user_resp or 'errors' in user_resp:
+            print(f"Erro ao criar usuário: {user_resp}")
+            return jsonify({"status": "error", "message": "Erro ao criar login. Tente outro e-mail."}), 400
 
-        # Cria Convidado
-        directus_request('POST', '/items/vaquinha_guests', data={
-            "tenant_id": tenant['id'],
-            "name": request.form.get('name'),
-            "payment_proof_url": file_id,
-            "status": "PENDING"
+        return jsonify({
+            "status": "success", 
+            "url": f"/{slug}", 
+            "admin_token": "ok"
         })
-
-        return jsonify({"status": "success", "message": "Comprovante enviado com sucesso!"})
-
-    except Exception as e:
-        print(f"Erro Geral: {e}")
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-# --- Outras Rotas API ---
+    
+    return jsonify({"status": "error", "message": "Erro ao criar evento. O link pode já existir."}), 400
 
 @app.route('/api/create_preference', methods=['POST'])
 def create_preference():
@@ -252,44 +258,47 @@ def create_preference():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/create_tenant_free', methods=['POST'])
-def create_tenant_free():
-    data = request.get_json()
-    slug = re.sub(r'[^a-z0-9-]', '', data.get('subdomain', '').lower())
+@app.route('/api/confirm_vaquinha', methods=['POST'])
+def confirm_vaquinha():
+    origin_slug = request.form.get('origin_slug')
     
-    if not slug: return jsonify({"status": "error", "message": "Link inválido"}), 400
+    if not origin_slug and request.referrer:
+        parts = request.referrer.split('/')
+        origin_slug = parts[-1] if parts[-1] else parts[-2]
 
-    tenant_payload = {
-        "company_name": data.get('company_name'),
-        "subdomain": slug,
-        "email": data.get('email'),
-        "pix_key": data.get('pix_key'),
-        "pix_owner_name": "Organizador",
-        "status": "active",
-        "plan_type": "free",
-        "guest_limit": 20
-    }
+    t_data = directus_request('GET', '/items/tenants', params={"filter[subdomain][_eq]": origin_slug})
+    if not t_data or not t_data.get('data'): 
+        return jsonify({"status": "error", "message": "Evento não encontrado"}), 404
     
-    resp = directus_request('POST', '/items/tenants', data=tenant_payload)
-    
-    if resp and resp.get('data'):
-        new_id = resp['data']['id']
-        directus_request('POST', '/users', data={
-            "first_name": "Admin",
-            "last_name": data.get('company_name'),
-            "email": data.get('email'), 
-            "password": data.get('password'), 
-            "role": USER_ROLE_ID,
-            "tenant_id": new_id
+    tenant = t_data['data'][0]
+    file_id = None
+    proof_file = request.files.get('proof')
+
+    try:
+        if proof_file:
+            file_content = proof_file.read()
+            files = {'file': (proof_file.filename, file_content, proof_file.mimetype)}
+            h_auth = {"Authorization": f"Bearer {DIRECTUS_TOKEN}"}
+            
+            up = requests.post(f"{DIRECTUS_URL}/files", files=files, headers=h_auth, verify=VERIFY_SSL)
+            
+            if up.status_code in [200, 201]: 
+                file_id = up.json()['data']['id']
+            else:
+                return jsonify({"status": "error", "message": f"Erro upload: {up.text}"}), 500
+
+        directus_request('POST', '/items/vaquinha_guests', data={
+            "tenant_id": tenant['id'],
+            "name": request.form.get('name'),
+            "payment_proof_url": file_id,
+            "status": "PENDING"
         })
-        
-        return jsonify({
-            "status": "success",
-            "url": f"/festa/{slug}",
-            "admin_token": "autologin" 
-        })
-    
-    return jsonify({"status": "error", "message": "Erro ao criar (link em uso?)"}), 400
+
+        return jsonify({"status": "success", "message": "Comprovante enviado com sucesso!"})
+
+    except Exception as e:
+        print(f"Erro Geral: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/api/admin/update_guest', methods=['POST'])
 def admin_update_guest():
