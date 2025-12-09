@@ -26,7 +26,7 @@ MP_ACCESS_TOKEN = os.environ.get("MP_ACCESS_TOKEN")
 if MP_ACCESS_TOKEN:
     sdk = mercadopago.SDK(MP_ACCESS_TOKEN)
 else:
-    print("⚠️ MP_ACCESS_TOKEN não configurado. Pagamentos Pro não funcionarão.")
+    print("⚠️ AVISO: MP_ACCESS_TOKEN não configurado. Pagamentos Pro não funcionarão.")
 
 # Email (SMTP Gmail)
 SMTP_SERVER = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
@@ -34,14 +34,14 @@ SMTP_PORT = int(os.environ.get("SMTP_PORT", 587))
 SMTP_USER = os.environ.get("SMTP_USER")
 SMTP_PASS = os.environ.get("SMTP_PASS")
 
-# SSL Verify (Mantenha True em produção se tiver SSL válido)
+# SSL Verify
 VERIFY_SSL = os.environ.get("VERIFY_SSL", "true").lower() == "true"
 if not VERIFY_SSL:
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# ID DA ROLE (PERMISSÃO) DO USUÁRIO NO DIRECTUS
-# Pegue em: Configurações > Funções e Permissões > Clique na Role > Copie o ID da URL
-USER_ROLE_ID = "JkKzBvSS9TTu5YYstA-rLmoWeHdU9Eas" 
+# --- IMPORTANTE: ID DA PERMISSÃO (ROLE) NO DIRECTUS ---
+# Copie o ID da role "Loja Admin" na URL do Directus e cole abaixo
+USER_ROLE_ID = "SUBSTITUA_PELO_ID_DA_ROLE_AQUI" 
 
 # =========================================================================
 # 2. FUNÇÕES AUXILIARES
@@ -69,20 +69,20 @@ def directus_request(method, endpoint, data=None, params=None):
 
 def send_welcome_email(to_email, link, senha):
     if not SMTP_USER or not SMTP_PASS:
-        print(f"⚠️ Email não configurado. Simulação: Para {to_email}, Senha {senha}")
+        print(f"⚠️ Email não configurado. Log: Para {to_email}, Senha {senha}")
         return
 
     msg = MIMEText(f"""
     Bem-vindo ao Divide o Pix!
     
-    Seu painel administrativo está pronto.
+    Seu painel administrativo PRO está pronto.
     
     🔗 Painel: {link}
     👤 Login: {to_email}
     🔑 Senha: {senha}
     """)
     
-    msg['Subject'] = "Acesso ao Divide o Pix"
+    msg['Subject'] = "Acesso PRO - Divide o Pix"
     msg['From'] = SMTP_USER
     msg['To'] = to_email
 
@@ -96,7 +96,7 @@ def send_welcome_email(to_email, link, senha):
         print(f"❌ Erro envio email: {e}")
 
 # =========================================================================
-# 3. ROTAS DE PÁGINAS (FRONTEND)
+# 3. ROTAS DO SITE (VISUALIZAÇÃO)
 # =========================================================================
 
 @app.route('/')
@@ -105,7 +105,7 @@ def home():
 
 @app.route('/festa/<slug>')
 def festa_view(slug):
-    # Busca tenant
+    # 1. Busca tenant
     data = directus_request('GET', '/items/tenants', params={"filter[subdomain][_eq]": slug})
     
     if not data or not data.get('data'):
@@ -113,7 +113,12 @@ def festa_view(slug):
 
     tenant = data['data'][0]
     
-    # Busca convidados
+    # 2. LÓGICA DE REDIRECIONAMENTO PARA ADMIN
+    # Se a URL tiver ?admin=token, redireciona para o painel correto usando o email do tenant
+    if request.args.get('admin'):
+        return redirect(url_for('admin_panel', email=tenant['email']))
+
+    # 3. Se não for admin, carrega a festa normal
     guests_data = directus_request('GET', '/items/vaquinha_guests', params={
         "filter[tenant_id][_eq]": tenant['id'],
         "sort": "-created_at"
@@ -131,8 +136,40 @@ def festa_view(slug):
         current_slug=slug
     )
 
+@app.route('/admin')
+def admin_panel():
+    # Painel do Organizador
+    email_param = request.args.get('email')
+    
+    if not email_param:
+        return "<h1>Acesso Negado</h1><p>Link inválido. Use o link recebido no cadastro.</p>", 403
+
+    t_data = directus_request('GET', '/items/tenants', params={"filter[email][_eq]": email_param})
+    
+    if not t_data or not t_data.get('data'):
+         return "Usuário não encontrado.", 404
+
+    tenant = t_data['data'][0]
+    
+    # Busca convidados
+    guests_req = directus_request('GET', '/items/vaquinha_guests', params={
+        "filter[tenant_id][_eq]": tenant['id'],
+        "sort": "-created_at"
+    })
+    all_guests = guests_req.get('data', [])
+    
+    pending = [g for g in all_guests if g.get('status') == 'PENDING']
+    confirmed = [g for g in all_guests if g.get('status') == 'CONFIRMED']
+
+    return render_template(
+        "admin.html", 
+        tenant=tenant,
+        guests_pending=pending,
+        guests_confirmed=confirmed
+    )
+
 # =========================================================================
-# 4. API - CRIAÇÃO DE CONTA (FREE e PRO)
+# 4. API - CRIAÇÃO E PAGAMENTOS
 # =========================================================================
 
 @app.route('/api/create_tenant_free', methods=['POST'])
@@ -143,18 +180,16 @@ def create_tenant_free():
 
     if not slug: return jsonify({"status": "error", "message": "Link inválido"}), 400
 
-    # Verifica duplicidade
     check = directus_request('GET', '/items/tenants', params={"filter[subdomain][_eq]": slug})
     if check and check.get('data'):
-        return jsonify({"status": "error", "message": "Este link já existe. Escolha outro."}), 400
+        return jsonify({"status": "error", "message": "Este link já existe."}), 400
 
-    # Cria Tenant Free
     tenant_payload = {
         "company_name": data.get('company_name'),
         "subdomain": slug,
         "email": data.get('email'),
-        "pix_key": data.get('pix_key'),      # Salva a chave PIX do form
-        "pix_owner_name": "Organizador",     # Padrão
+        "pix_key": data.get('pix_key'),
+        "pix_owner_name": "Organizador",
         "status": "active",
         "plan_type": "free",
         "guest_limit": 20,
@@ -165,19 +200,18 @@ def create_tenant_free():
     
     if resp and resp.get('data'):
         new_id = resp['data']['id']
-        # Cria Usuário
         directus_request('POST', '/items/users', data={
             "tenant_id": new_id, 
             "email": data.get('email'), 
             "password": data.get('password', 'mudar123'), 
-            "role": USER_ROLE_ID  # <--- ID DA ROLE AQUI
+            "role": USER_ROLE_ID 
         })
         
-        # Retorna JSON no formato que o JS espera
+        # Retorna sucesso com token para login automático no redirecionamento
         return jsonify({
             "status": "success",
             "url": f"{BASE_URL}/festa/{slug}",
-            "admin_token": "login"
+            "admin_token": "autologin" 
         })
     
     return jsonify({"status": "error", "message": "Erro no banco de dados"}), 500
@@ -198,11 +232,14 @@ def webhook_payment():
                 payer_email = payment.get("payer", {}).get("email")
                 company_name = payment.get("external_reference", "Nova Festa Pro")
                 
-                # Gera slug
                 slug = re.sub(r'[^a-z0-9]', '', company_name.lower())[:15] + "-pro"
+                # Evita colisão de slug
+                check = directus_request('GET', '/items/tenants', params={"filter[subdomain][_eq]": slug})
+                if check and check.get('data'):
+                    slug += str(payment_id)[-4:]
+
                 temp_password = "pro" + os.urandom(4).hex()
 
-                # Tenant PRO
                 tenant_payload = {
                     "company_name": company_name,
                     "subdomain": slug,
@@ -214,9 +251,9 @@ def webhook_payment():
                     "template_name": "vaquinha"
                 }
 
-                # Cria se não existir email
-                check = directus_request('GET', '/items/tenants', params={"filter[email][_eq]": payer_email})
-                if not check or not check.get('data'):
+                # Cria apenas se não existir por email
+                check_email = directus_request('GET', '/items/tenants', params={"filter[email][_eq]": payer_email})
+                if not check_email or not check_email.get('data'):
                     resp = directus_request('POST', '/items/tenants', data=tenant_payload)
                     if resp and resp.get('data'):
                         new_id = resp['data']['id']
@@ -224,9 +261,12 @@ def webhook_payment():
                             "tenant_id": new_id, 
                             "email": payer_email, 
                             "password": temp_password, 
-                            "role": USER_ROLE_ID # <--- ID DA ROLE AQUI
+                            "role": USER_ROLE_ID
                         })
-                        send_welcome_email(payer_email, f"{BASE_URL}/admin", temp_password)
+                        
+                        # Manda link direto para o admin
+                        admin_link = f"{BASE_URL}/admin?email={payer_email}"
+                        send_welcome_email(payer_email, admin_link, temp_password)
                         return jsonify({"status": "created"}), 201
 
         except Exception as e:
@@ -236,34 +276,30 @@ def webhook_payment():
     return jsonify({"status": "ignored"}), 200
 
 # =========================================================================
-# 5. API - UPLOAD COMPROVANTE
+# 5. API - AÇÕES DE USUÁRIO E ADMIN
 # =========================================================================
 
 @app.route('/api/confirm_vaquinha', methods=['POST'])
 def confirm_vaquinha():
-    # Tenta pegar slug do hidden ou referrer
     origin_slug = request.form.get('origin_slug')
     if not origin_slug and request.referrer:
-        origin_slug = request.referrer.split('/')[-1]
+        origin_slug = request.referrer.split('/')[-1].split('?')[0] # Remove query params
     
     if not origin_slug: return "Link inválido", 400
 
-    # Lógica de salvar convidado e upload...
-    # (Mantida igual ao anterior, omitida para brevidade mas funcional)
-    # Requer implementação completa se não tiver copiado do chat anterior
-    # Vou incluir o básico para funcionar:
-    
     t_data = directus_request('GET', '/items/tenants', params={"filter[subdomain][_eq]": origin_slug})
     if not t_data or not t_data.get('data'): return "Evento 404", 404
     tenant = t_data['data'][0]
     
+    # Upload
     guest_name = request.form.get('name')
     proof_file = request.files.get('proof')
     file_id = None
     
     if proof_file:
         files = {'file': (proof_file.filename, proof_file.stream, proof_file.mimetype)}
-        up = requests.post(f"{DIRECTUS_URL}/files", files=files, headers={"Authorization": f"Bearer {DIRECTUS_TOKEN}"}, verify=VERIFY_SSL)
+        h_auth = {"Authorization": f"Bearer {DIRECTUS_TOKEN}"}
+        up = requests.post(f"{DIRECTUS_URL}/files", files=files, headers=h_auth, verify=VERIFY_SSL)
         if up.status_code in [200, 201]: file_id = up.json()['data']['id']
 
     directus_request('POST', '/items/vaquinha_guests', data={
@@ -274,6 +310,21 @@ def confirm_vaquinha():
     })
 
     return redirect(f"/festa/{origin_slug}")
+
+@app.route('/api/admin/update_guest', methods=['POST'])
+def admin_update_guest():
+    data = request.get_json()
+    guest_id = data.get('guest_id')
+    new_status = data.get('status') 
+    
+    if not guest_id: return jsonify({"error": "ID faltando"}), 400
+
+    resp = directus_request('PATCH', f'/items/vaquinha_guests/{guest_id}', data={
+        "status": new_status
+    })
+    
+    if resp: return jsonify({"status": "success"}), 200
+    return jsonify({"error": "Falha ao atualizar"}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
