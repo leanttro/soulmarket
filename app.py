@@ -101,6 +101,9 @@ def send_welcome_email(to_email, link, senha):
 @app.route('/')
 def home():
     return render_template("confras.html")
+@app.route('/login.html')
+def login_page():
+    return render_template('login.html')
 
 @app.route('/festa/<slug>')
 def festa_view(slug):
