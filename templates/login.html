@@ -74,7 +74,6 @@
             msg.classList.add('hidden');
 
             try {
-                // Mude para sua rota real de login
                 const res = await fetch('/api/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -83,17 +82,16 @@
 
                 const data = await res.json();
 
-                if (res.ok && data.token) {
-                    // Sucesso: Salva token e redireciona
+                if (res.ok && data.email) {
+                    // Sucesso: Salva token e REDIRECIONA COM O E-MAIL NA URL
                     localStorage.setItem('admin_token', data.token);
-                    window.location.href = 'admin.html';
+                    
+                    // IMPORTANTE: Adiciona o e-mail na URL para o backend carregar os dados
+                    window.location.href = `admin.html?email=${data.email}`;
                 } else {
                     throw new Error(data.message || 'Credenciais inválidas');
                 }
             } catch (err) {
-                // Para testes locais sem backend, remova este comentário para forçar o login:
-                // window.location.href = 'admin.html'; 
-                
                 msg.innerText = err.message;
                 msg.classList.remove('hidden');
             } finally {
