@@ -17,17 +17,15 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "chave_secreta_padrao")
 BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:5000")
 
-# --- ATENÇÃO: Verifique se estes dados estão certos ---
-# Recuperei a URL dos seus prints. Coloque seu TOKEN real abaixo.
+# DIRECTUS
 DIRECTUS_URL = os.environ.get("DIRECTUS_URL", "https://directus.leanttro.com")
 DIRECTUS_TOKEN = os.environ.get("DIRECTUS_TOKEN", "SEU_TOKEN_AQUI") 
 
-# Mercado Pago
+# MERCADO PAGO
 MP_ACCESS_TOKEN = os.environ.get("MP_ACCESS_TOKEN")
 if MP_ACCESS_TOKEN:
     sdk = mercadopago.SDK(MP_ACCESS_TOKEN)
 else:
-    # Cria um SDK fake para não quebrar o app se não tiver token
     class FakeSDK:
         def preference(self): return self
         def create(self, data): return {"response": {"id": "fake_preference_id"}}
@@ -39,7 +37,8 @@ VERIFY_SSL = os.environ.get("VERIFY_SSL", "true").lower() == "true"
 if not VERIFY_SSL:
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# ID da role "Loja Admin"
+# --- IMPORTANTE: ATUALIZE ISTO NO SEU DIRECTUS ---
+# Esse ID deve ser pego em Configurações > Roles & Permissions > Clicar na Role > Copiar ID da URL
 USER_ROLE_ID = "92676066-7506-4c16-9177-3bc0a7530b30" 
 
 # =========================================================================
@@ -59,6 +58,8 @@ def directus_request(method, endpoint, data=None, params=None):
             r = requests.post(url, json=data, headers=headers, verify=VERIFY_SSL, timeout=10)
         elif method == 'PATCH':
             r = requests.patch(url, json=data, headers=headers, verify=VERIFY_SSL, timeout=10)
+        elif method == 'DELETE':
+            r = requests.delete(url, headers=headers, verify=VERIFY_SSL, timeout=10)
         
         try:
             return r.json()
@@ -69,8 +70,7 @@ def directus_request(method, endpoint, data=None, params=None):
         return None
 
 def send_welcome_email(to_email, link, senha):
-    if not os.environ.get("SMTP_USER"): return
-    # (Lógica de e-mail mantida, omitida para brevidade se não usada)
+    # Implementar lógica de SMTP aqui se necessário
     pass
 
 # =========================================================================
@@ -79,6 +79,7 @@ def send_welcome_email(to_email, link, senha):
 
 @app.route('/')
 def home():
+    # Rota principal agora aponta para a Landing Page do Divide o PIX
     return render_template("confras.html")
 
 @app.route('/login.html')
@@ -98,7 +99,7 @@ def admin_panel():
     t_data = directus_request('GET', '/items/tenants', params={"filter[email][_eq]": email_param})
     
     if not t_data or not t_data.get('data'):
-         return "<h1>Painel não encontrado.</h1>", 404
+         return "<h1>Painel não encontrado ou acesso negado.</h1>", 404
     
     tenant = t_data['data'][0]
     
@@ -116,6 +117,7 @@ def admin_panel():
 @app.route('/festa/<slug>')
 @app.route('/<slug>')
 def festa_view(slug):
+    # Ignora arquivos estáticos comuns
     if slug in ['favicon.ico', 'robots.txt'] or slug.startswith('api') or '.' in slug:
         return "Not Found", 404
 
@@ -126,6 +128,7 @@ def festa_view(slug):
         
     tenant = data['data'][0]
     
+    # Se for o dono acessando a rota pública, redireciona para o admin (opcional)
     if request.args.get('admin'):
         return redirect(url_for('admin_panel', email=tenant['email']))
 
@@ -147,7 +150,6 @@ def festa_view(slug):
 # 4. API (BACKEND)
 # =========================================================================
 
-# --- [NOVO] ROTA DE LOGIN QUE FALTAVA ---
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.json
@@ -158,7 +160,7 @@ def login():
         return jsonify({"message": "Preencha e-mail e senha"}), 400
 
     try:
-        # Autentica direto no Directus
+        # Autentica direto no endpoint /auth/login do Directus
         auth_url = f"{DIRECTUS_URL}/auth/login"
         auth_resp = requests.post(
             auth_url, 
@@ -177,17 +179,15 @@ def login():
         print(f"Erro Login: {e}")
         return jsonify({"message": "Erro no servidor."}), 500
 
-# --- [CORRIGIDO] UPLOAD DE IMAGEM ---
+
 @app.route('/api/confirm_vaquinha', methods=['POST'])
 def confirm_vaquinha():
     origin_slug = request.form.get('origin_slug')
     
-    # Tenta descobrir o slug se não vier no form
     if not origin_slug and request.referrer:
         parts = request.referrer.split('/')
         origin_slug = parts[-1] if parts[-1] else parts[-2]
 
-    # Busca Tenant
     t_data = directus_request('GET', '/items/tenants', params={"filter[subdomain][_eq]": origin_slug})
     if not t_data or not t_data.get('data'): 
         return jsonify({"status": "error", "message": "Evento não encontrado"}), 404
@@ -198,22 +198,18 @@ def confirm_vaquinha():
 
     try:
         if proof_file:
-            # Lê o arquivo antes de enviar para evitar problemas de stream
             file_content = proof_file.read()
             files = {'file': (proof_file.filename, file_content, proof_file.mimetype)}
             h_auth = {"Authorization": f"Bearer {DIRECTUS_TOKEN}"}
             
-            # Envia para o Directus
             up = requests.post(f"{DIRECTUS_URL}/files", files=files, headers=h_auth, verify=VERIFY_SSL)
             
             if up.status_code in [200, 201]: 
                 file_id = up.json()['data']['id']
             else:
-                # Retorna o erro real do Directus para ajudar no debug
-                print(f"Erro Directus: {up.text}")
-                return jsonify({"status": "error", "message": f"Erro ao salvar imagem: {up.text}"}), 500
+                print(f"Erro Directus Upload: {up.text}")
+                return jsonify({"status": "error", "message": "Erro ao salvar imagem. Tente novamente."}), 500
 
-        # Cria Convidado
         directus_request('POST', '/items/vaquinha_guests', data={
             "tenant_id": tenant['id'],
             "name": request.form.get('name'),
@@ -227,7 +223,6 @@ def confirm_vaquinha():
         print(f"Erro Geral: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# --- Outras Rotas API ---
 
 @app.route('/api/create_preference', methods=['POST'])
 def create_preference():
@@ -252,6 +247,7 @@ def create_preference():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
 @app.route('/api/create_tenant_free', methods=['POST'])
 def create_tenant_free():
     data = request.get_json()
@@ -259,6 +255,7 @@ def create_tenant_free():
     
     if not slug: return jsonify({"status": "error", "message": "Link inválido"}), 400
 
+    # 1. Cria o Tenant (Evento)
     tenant_payload = {
         "company_name": data.get('company_name'),
         "subdomain": slug,
@@ -273,23 +270,44 @@ def create_tenant_free():
     resp = directus_request('POST', '/items/tenants', data=tenant_payload)
     
     if resp and resp.get('data'):
-        new_id = resp['data']['id']
-        directus_request('POST', '/users', data={
+        new_tenant_id = resp['data']['id']
+        
+        # 2. Cria o Usuário de Login (CRÍTICO: Validar se deu certo)
+        user_payload = {
             "first_name": "Admin",
             "last_name": data.get('company_name'),
             "email": data.get('email'), 
             "password": data.get('password'), 
             "role": USER_ROLE_ID,
-            "tenant_id": new_id
-        })
+            "tenant_id": new_tenant_id
+        }
         
+        user_resp = directus_request('POST', '/users', data=user_payload)
+        
+        # Verifica falha na criação do usuário
+        if not user_resp or 'data' not in user_resp:
+            print(f"❌ ERRO FATAL AO CRIAR USUÁRIO: {user_resp}")
+            
+            # (Opcional) Remove o tenant criado para não ficar "órfão" sem dono
+            # directus_request('DELETE', f'/items/tenants/{new_tenant_id}')
+            
+            # Retorna erro detalhado para o frontend entender
+            error_msg = "Erro interno ao criar login."
+            if user_resp and 'errors' in user_resp:
+                error_msg = user_resp['errors'][0].get('message', error_msg)
+            
+            return jsonify({"status": "error", "message": f"Falha no cadastro: {error_msg}"}), 500
+        
+        # Se chegou aqui, tudo certo
         return jsonify({
             "status": "success",
             "url": f"/festa/{slug}",
             "admin_token": "autologin" 
         })
     
-    return jsonify({"status": "error", "message": "Erro ao criar (link em uso?)"}), 400
+    # Se falhar ao criar o Tenant (provavelmente slug duplicado)
+    return jsonify({"status": "error", "message": "Erro ao criar. Verifique se o Link já não existe."}), 400
+
 
 @app.route('/api/admin/update_guest', methods=['POST'])
 def admin_update_guest():
