@@ -9,31 +9,37 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for
 app = Flask(__name__)
 
 # =========================================================================
-# 1. CONFIGURAÇÕES
+# 1. CONFIGURAÇÕES & AMBIENTE
 # =========================================================================
 
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "chave_secreta_padrao")
-BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:5000")
+BASE_URL = os.environ.get("APP_BASE_URL", "https://www.divideopix.com.br")
 
-# DIRECTUS
+# DIRECTUS CONFIG
 DIRECTUS_URL = os.environ.get("DIRECTUS_URL", "https://directus.leanttro.com")
 DIRECTUS_TOKEN = os.environ.get("DIRECTUS_TOKEN", "SEU_TOKEN_AQUI") 
 
-# Mercado Pago
+# MERCADO PAGO CONFIG
+# IMPORTANTE: Use o Access Token de PRODUÇÃO para o webhook funcionar
 MP_ACCESS_TOKEN = os.environ.get("MP_ACCESS_TOKEN")
+
 if MP_ACCESS_TOKEN:
     sdk = mercadopago.SDK(MP_ACCESS_TOKEN)
 else:
+    # Fallback apenas para não quebrar localmente se não tiver token
     class FakeSDK:
         def preference(self): return self
-        def create(self, data): return {"response": {"id": "fake_preference_id"}}
+        def payment(self): return self
+        def create(self, data): return {"response": {"id": "fake", "init_point": "#"}}
+        def get(self, id): return {"response": {"status": "approved"}}
     sdk = FakeSDK()
 
-# SSL
+# SSL IGNORE (Para ambientes de dev/teste específicos)
 VERIFY_SSL = os.environ.get("VERIFY_SSL", "true").lower() == "true"
 if not VERIFY_SSL:
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+# ID do Role de Usuário no Directus (Ajuste se mudar no seu banco)
 USER_ROLE_ID = "92676066-7506-4c16-9177-3bc0a7530b30" 
 
 # =========================================================================
@@ -41,6 +47,7 @@ USER_ROLE_ID = "92676066-7506-4c16-9177-3bc0a7530b30"
 # =========================================================================
 
 def directus_request(method, endpoint, data=None, params=None):
+    """Wrapper para chamadas ao Directus"""
     headers = {
         "Authorization": f"Bearer {DIRECTUS_TOKEN}",
         "Content-Type": "application/json"
@@ -87,6 +94,7 @@ def admin_panel():
     if not email_param:
         return redirect(url_for('login_page'))
 
+    # Busca o tenant pelo email
     t_data = directus_request('GET', '/items/tenants', params={"filter[email][_eq]": email_param})
     
     if not t_data or not t_data.get('data'):
@@ -94,6 +102,7 @@ def admin_panel():
     
     tenant = t_data['data'][0]
     
+    # Busca convidados
     guests_req = directus_request('GET', '/items/vaquinha_guests', params={
         "filter[tenant_id][_eq]": tenant['id'],
         "sort": "-created_at"
@@ -108,6 +117,7 @@ def admin_panel():
 @app.route('/festa/<slug>')
 @app.route('/<slug>')
 def festa_view(slug):
+    # Ignorar arquivos estáticos ou rotas de api
     if slug in ['favicon.ico', 'robots.txt'] or slug.startswith('api') or '.' in slug:
         return "Not Found", 404
 
@@ -118,6 +128,7 @@ def festa_view(slug):
         
     tenant = data['data'][0]
     
+    # Se o admin estiver acessando via link publico, redireciona
     if request.args.get('admin'):
         return redirect(url_for('admin_panel', email=tenant['email']))
 
@@ -174,6 +185,7 @@ def login():
 def confirm_vaquinha():
     origin_slug = request.form.get('origin_slug')
     
+    # Fallback se não vier slug hidden
     if not origin_slug and request.referrer:
         parts = request.referrer.split('/')
         origin_slug = parts[-1] if parts[-1] else parts[-2]
@@ -187,6 +199,7 @@ def confirm_vaquinha():
     proof_file = request.files.get('proof')
 
     try:
+        # Upload do arquivo para o Directus
         if proof_file:
             file_content = proof_file.read()
             files = {'file': (proof_file.filename, file_content, proof_file.mimetype)}
@@ -198,11 +211,11 @@ def confirm_vaquinha():
             else:
                 return jsonify({"status": "error", "message": "Erro ao salvar imagem."}), 500
 
-        # --- DADOS ATUALIZADOS AQUI ---
+        # Cria o convidado
         directus_request('POST', '/items/vaquinha_guests', data={
             "tenant_id": tenant['id'],
             "name": request.form.get('name'),
-            "whatsapp": request.form.get('whatsapp'), # <--- NOVO CAMPO
+            "whatsapp": request.form.get('whatsapp'),
             "payment_proof_url": file_id,
             "status": "PENDING"
         })
@@ -212,30 +225,16 @@ def confirm_vaquinha():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/api/create_preference', methods=['POST'])
-def create_preference():
-    try:
-        data = request.json
-        plan = data.get('plan')
-        price = 9.99 if plan == 'plus' else 17.99
-        title = f"Plano PIX {plan.capitalize()}"
-        preference_data = {
-            "items": [{"title": title, "quantity": 1, "unit_price": price, "currency_id": "BRL"}],
-            "back_urls": {"success": f"{BASE_URL}/admin", "failure": BASE_URL, "pending": BASE_URL},
-            "auto_return": "approved"
-        }
-        response = sdk.preference().create(preference_data)
-        return jsonify({"id": response["response"]["id"]})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
 @app.route('/api/create_tenant_free', methods=['POST'])
 def create_tenant_free():
     data = request.get_json()
     slug = re.sub(r'[^a-z0-9-]', '', data.get('subdomain', '').lower())
+    plan = data.get('plan') # 'plus', 'pro' ou vazio (free)
     
-    if not slug: return jsonify({"status": "error", "message": "Link inválido"}), 400
+    if not slug: 
+        return jsonify({"status": "error", "message": "Link inválido"}), 400
 
+    # 1. Cria o Tenant no Banco (Sempre começa como free/active)
     tenant_payload = {
         "company_name": data.get('company_name'),
         "subdomain": slug,
@@ -252,6 +251,8 @@ def create_tenant_free():
     
     if resp and resp.get('data'):
         new_id = resp['data']['id']
+        
+        # Opcional: Cria usuario na collection users do Directus (se usar autenticação nativa)
         try:
             directus_request('POST', '/users', data={
                 "first_name": "Admin",
@@ -264,13 +265,61 @@ def create_tenant_free():
         except:
             pass 
         
+        # 2. Se for plano pago, gera checkout e devolve URL
+        if plan in ['plus', 'pro']:
+            try:
+                price = 9.99 if plan == 'plus' else 17.99
+                title = f"Upgrade Divide o Pix {plan.capitalize()}"
+                
+                preference_data = {
+                    "items": [{
+                        "title": title,
+                        "quantity": 1,
+                        "unit_price": price,
+                        "currency_id": "BRL"
+                    }],
+                    # O PULO DO GATO: Vincula o pagamento a este Tenant ID
+                    "external_reference": str(new_id),
+                    "back_urls": {
+                        "success": f"{BASE_URL}/admin?email={data.get('email')}",
+                        "failure": BASE_URL,
+                        "pending": BASE_URL
+                    },
+                    "auto_return": "approved",
+                    # Webhook notifications will be sent to the URL configured in MP Dashboard
+                    # but we can also force it here optionally:
+                    "notification_url": f"{BASE_URL}/api/webhook/payment_success"
+                }
+                
+                mp_response = sdk.preference().create(preference_data)
+                
+                # Obtem link de pagamento
+                checkout_url = mp_response["response"].get("init_point")
+                
+                return jsonify({
+                    "status": "success",
+                    "checkout_url": checkout_url,
+                    "tenant_id": new_id
+                })
+
+            except Exception as e:
+                print(f"Erro MP Create: {e}")
+                # Se der erro no MP, devolve sucesso mas com plano free mesmo
+                return jsonify({
+                    "status": "success",
+                    "url": f"/festa/{slug}",
+                    "admin_token": "autologin",
+                    "message": "Conta criada, mas erro ao gerar pagamento. Plano Free ativo."
+                })
+
+        # 3. Se for Free, fluxo normal
         return jsonify({
             "status": "success",
             "url": f"/festa/{slug}",
             "admin_token": "autologin" 
         })
     
-    return jsonify({"status": "error", "message": "Erro ao criar (link em uso?)"}), 400
+    return jsonify({"status": "error", "message": "Erro ao criar (Link ou Email já em uso?)"}), 400
 
 @app.route('/api/admin/update_guest', methods=['POST'])
 def admin_update_guest():
@@ -286,6 +335,65 @@ def admin_update_guest():
     
     if resp: return jsonify({"status": "success"}), 200
     return jsonify({"error": "Falha ao atualizar"}), 500
+
+# =========================================================================
+# 5. WEBHOOK MERCADO PAGO
+# =========================================================================
+
+@app.route('/api/webhook/payment_success', methods=['POST'])
+def webhook_payment():
+    """
+    Recebe notificação do Mercado Pago.
+    Se o pagamento for aprovado, faz upgrade do plano.
+    """
+    try:
+        # O Mercado Pago pode mandar os dados na query string (type, data.id) ou no body
+        topic = request.args.get('topic') or request.args.get('type')
+        payment_id = request.args.get('data.id') or request.args.get('id')
+
+        # Se vier no JSON body
+        if not payment_id and request.is_json:
+            json_data = request.get_json()
+            if json_data.get('action') == 'payment.created' or json_data.get('type') == 'payment':
+                payment_id = json_data.get('data', {}).get('id')
+
+        # Se não for sobre pagamento, ignora
+        if not payment_id:
+             return jsonify({"status": "ignored"}), 200
+
+        # Busca status atualizado no Mercado Pago (Segurança contra spoofing)
+        payment_info = sdk.payment().get(payment_id)
+        
+        if payment_info["status"] == 200:
+            payment_data = payment_info["response"]
+            status = payment_data.get("status")
+            external_ref = payment_data.get("external_reference")
+            transaction_amount = float(payment_data.get("transaction_amount", 0))
+
+            print(f"🔔 Webhook: Pagamento {payment_id} | Status: {status} | Ref: {external_ref}")
+
+            if status == 'approved' and external_ref:
+                # Determina o plano baseado no valor
+                # R$ 9.99 = Plus | R$ 17.99 = Pro
+                new_plan = 'plus'
+                new_limit = 50
+                
+                if transaction_amount > 15: # Margem de segurança
+                    new_plan = 'pro'
+                    new_limit = 100
+
+                # Atualiza Directus
+                directus_request('PATCH', f'/items/tenants/{external_ref}', data={
+                    "plan_type": new_plan,
+                    "guest_limit": new_limit
+                })
+                print(f"✅ Upgrade realizado para Tenant {external_ref} -> {new_plan}")
+
+        return jsonify({"status": "ok"}), 200
+
+    except Exception as e:
+        print(f"❌ Erro Webhook: {e}")
+        return jsonify({"status": "error"}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

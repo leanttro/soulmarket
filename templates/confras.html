@@ -62,7 +62,7 @@
         </div>
     </nav>
 
-    <main class="container mx-auto px-4 py-12 md:py-20 flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
+    <main class="container mx-auto px-4 py-6 md:py-10 flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
         
         <div class="lg:w-1/2 space-y-8 text-center lg:text-left">
             <div class="inline-flex items-center px-3 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-2">
@@ -100,6 +100,9 @@
                 </div>
 
                 <form id="creationForm" class="space-y-5">
+                    <!-- Input Hidden para o Plano Selecionado -->
+                    <input type="hidden" id="selected_plan" name="selected_plan" value="">
+
                     <div class="space-y-1">
                         <label class="text-xs font-bold text-zinc-500 uppercase">Nome da Vaquinha / Evento</label>
                         <input type="text" id="company_name" required placeholder="Ex: Churras da Turma" 
@@ -139,7 +142,7 @@
                         </div>
                     </div>
 
-                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-600/30 transform transition hover:-translate-y-0.5 active:translate-y-0 mt-2">
+                    <button type="submit" id="submitBtn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-600/30 transform transition hover:-translate-y-0.5 active:translate-y-0 mt-2">
                         Criar Vaquinha Grátis
                     </button>
                     
@@ -154,7 +157,7 @@
         </div>
     </main>
 
-    <section id="como-funciona" class="border-t border-white/5 bg-zinc-900/30 py-20">
+    <section id="como-funciona" class="border-t border-white/5 bg-zinc-900/30 py-10">
         <div class="container mx-auto px-4">
             <div class="text-center mb-16">
                 <h2 class="text-2xl md:text-3xl font-bold mb-4">Como funciona?</h2>
@@ -181,7 +184,7 @@
         </div>
     </section>
 
-    <section id="precos" class="py-20 relative">
+    <section id="precos" class="py-10 relative">
         <div class="container mx-auto px-4">
             <div class="text-center mb-12">
                 <h2 class="text-2xl md:text-3xl font-bold mb-4">Escolha seu plano</h2>
@@ -200,7 +203,7 @@
                         <li class="flex items-center gap-2"><svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Link Personalizado</li>
                         <li class="flex items-center gap-2"><svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Lista de Presença</li>
                     </ul>
-                    <a href="#criar" class="block w-full py-2.5 rounded-lg border border-zinc-700 text-center text-sm font-medium hover:bg-zinc-800 transition">Criar Grátis</a>
+                    <a href="#criar" onclick="selectPlan('free')" class="block w-full py-2.5 rounded-lg border border-zinc-700 text-center text-sm font-medium hover:bg-zinc-800 transition">Criar Grátis</a>
                 </div>
 
                 <div class="p-6 rounded-2xl bg-zinc-900 border border-blue-500/30 flex flex-col relative overflow-hidden h-full md:scale-105 shadow-xl shadow-blue-900/10 z-10">
@@ -214,7 +217,7 @@
                         <li class="flex items-center gap-2"><svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Cores do seu Evento</li>
                         <li class="flex items-center gap-2"><svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Controle de Itens</li>
                     </ul>
-                    <button onclick="handlePayment('plus')" class="block w-full py-2.5 rounded-lg bg-blue-600 text-white text-center text-sm font-bold hover:bg-blue-500 transition">
+                    <button onclick="selectPlan('plus')" class="block w-full py-2.5 rounded-lg bg-blue-600 text-white text-center text-sm font-bold hover:bg-blue-500 transition">
                         Escolher Plus
                     </button>
                 </div>
@@ -229,7 +232,7 @@
                         <li class="flex items-center gap-2"><svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Upload de Comprovante</li>
                         <li class="flex items-center gap-2"><svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Painel Admin Completo</li>
                     </ul>
-                    <button onclick="handlePayment('pro')" class="block w-full py-2.5 rounded-lg bg-emerald-600 text-white text-center text-sm font-bold hover:bg-emerald-500 transition shadow-lg shadow-emerald-500/20">
+                    <button onclick="selectPlan('pro')" class="block w-full py-2.5 rounded-lg bg-emerald-600 text-white text-center text-sm font-bold hover:bg-emerald-500 transition shadow-lg shadow-emerald-500/20">
                         Escolher Pro
                     </button>
                 </div>
@@ -240,61 +243,75 @@
         </div>
     </section>
 
-    <section class="py-24 bg-zinc-950 overflow-hidden relative border-t border-white/5">
+    <section class="py-12 bg-zinc-950 relative border-t border-white/5">
         
-        <div class="container mx-auto px-4 mb-12 text-center relative z-10">
+        <div class="container mx-auto px-4 mb-8 text-center relative z-10">
             <h2 class="text-2xl md:text-3xl font-bold mb-4 text-white">Quem usa, recomenda</h2>
             <p class="text-zinc-400">Junte-se a milhares de organizadores inteligentes.</p>
         </div>
 
-        <div class="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-zinc-950 to-transparent z-20 pointer-events-none"></div>
-        <div class="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-zinc-950 to-transparent z-20 pointer-events-none"></div>
-
-        <div class="flex w-max animate-scroll gap-6 hover:cursor-grab">
+        <div class="relative max-w-7xl mx-auto px-4">
             
-            <div class="w-80 p-6 rounded-2xl bg-zinc-900 border border-zinc-800 shrink-0">
-                <div class="flex items-center gap-1 mb-3 text-emerald-400">★★★★★</div>
-                <p class="text-sm text-zinc-300 mb-4">"Nunca mais briguei por causa de centavos na pizza de sexta-feira. Mando o link no grupo e todo mundo paga pianinho."</p>
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-emerald-900/50 text-emerald-400 flex items-center justify-center text-xs font-bold">LC</div>
-                    <span class="text-xs font-bold text-zinc-500">Lucas C.</span>
+            <div class="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-zinc-950 to-transparent z-20 pointer-events-none hidden md:block"></div>
+            <div class="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-zinc-950 to-transparent z-20 pointer-events-none hidden md:block"></div>
+
+            <div id="testimonials" class="flex gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth no-scrollbar pb-4 items-stretch">
+                
+                <div class="w-80 p-6 rounded-2xl bg-zinc-900 border border-zinc-800 shrink-0 snap-center">
+                    <div class="flex items-center gap-1 mb-3 text-emerald-400">★★★★★</div>
+                    <p class="text-sm text-zinc-300 mb-4">"Nunca mais briguei por causa de centavos na pizza de sexta-feira. Mando o link no grupo e todo mundo paga pianinho."</p>
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-emerald-900/50 text-emerald-400 flex items-center justify-center text-xs font-bold">LC</div>
+                        <span class="text-xs font-bold text-zinc-500">Lucas C.</span>
+                    </div>
                 </div>
+
+                <div class="w-80 p-6 rounded-2xl bg-zinc-900 border border-zinc-800 shrink-0 snap-center">
+                    <div class="flex items-center gap-1 mb-3 text-emerald-400">★★★★<span class="text-zinc-700">★</span></div>
+                    <p class="text-sm text-zinc-300 mb-4">"Organizar o churrasco da firma era um pesadelo com planilha. Com o Divide o Pix, resolvi tudo em 10 minutos."</p>
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-blue-900/50 text-blue-400 flex items-center justify-center text-xs font-bold">MP</div>
+                        <span class="text-xs font-bold text-zinc-500">Mariana P.</span>
+                    </div>
+                </div>
+
+                <div class="w-80 p-6 rounded-2xl bg-zinc-900 border border-zinc-800 shrink-0 snap-center">
+                    <div class="flex items-center gap-1 mb-3 text-emerald-400">★★★★★</div>
+                    <p class="text-sm text-zinc-300 mb-4">"O futebol de quarta-feira agora é pré-pago. Quem não manda o comprovante no link, não joga. Simples assim."</p>
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-purple-900/50 text-purple-400 flex items-center justify-center text-xs font-bold">RJ</div>
+                        <span class="text-xs font-bold text-zinc-500">Rafael J.</span>
+                    </div>
+                </div>
+
+                <div class="w-80 p-6 rounded-2xl bg-zinc-900 border border-zinc-800 shrink-0 snap-center">
+                    <div class="flex items-center gap-1 mb-3 text-emerald-400">★★★★<span class="text-zinc-700">★</span></div>
+                    <p class="text-sm text-zinc-300 mb-4">"Fizemos a vaquinha pro presente de casamento da chefe. O app mostra quem pagou, evitou aquela confusão de cobrar um por um."</p>
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-pink-900/50 text-pink-400 flex items-center justify-center text-xs font-bold">BA</div>
+                        <span class="text-xs font-bold text-zinc-500">Bia A.</span>
+                    </div>
+                </div>
+                
+                <div class="w-80 p-6 rounded-2xl bg-zinc-900 border border-zinc-800 shrink-0 snap-center">
+                    <div class="flex items-center gap-1 mb-3 text-emerald-400">★★★★★</div>
+                    <p class="text-sm text-zinc-300 mb-4">"Alugamos um sítio pro Carnaval e usei o plano Pro. Poder aprovar os comprovantes me salvou de calote."</p>
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-yellow-900/50 text-yellow-400 flex items-center justify-center text-xs font-bold">TH</div>
+                        <span class="text-xs font-bold text-zinc-500">Thiago H.</span>
+                    </div>
+                </div>
+
             </div>
 
-            <div class="w-80 p-6 rounded-2xl bg-zinc-900 border border-zinc-800 shrink-0">
-                <div class="flex items-center gap-1 mb-3 text-emerald-400">★★★★★</div>
-                <p class="text-sm text-zinc-300 mb-4">"Organizar o churrasco da firma era um pesadelo com planilha. Com o Divide o Pix, resolvi tudo em 10 minutos."</p>
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-blue-900/50 text-blue-400 flex items-center justify-center text-xs font-bold">MP</div>
-                    <span class="text-xs font-bold text-zinc-500">Mariana P.</span>
-                </div>
-            </div>
-
-            <div class="w-80 p-6 rounded-2xl bg-zinc-900 border border-zinc-800 shrink-0">
-                <div class="flex items-center gap-1 mb-3 text-emerald-400">★★★★★</div>
-                <p class="text-sm text-zinc-300 mb-4">"O futebol de quarta-feira agora é pré-pago. Quem não manda o comprovante no link, não joga. Simples assim."</p>
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-purple-900/50 text-purple-400 flex items-center justify-center text-xs font-bold">RJ</div>
-                    <span class="text-xs font-bold text-zinc-500">Rafael J.</span>
-                </div>
-            </div>
-
-            <div class="w-80 p-6 rounded-2xl bg-zinc-900 border border-zinc-800 shrink-0">
-                <div class="flex items-center gap-1 mb-3 text-emerald-400">★★★★★</div>
-                <p class="text-sm text-zinc-300 mb-4">"Fizemos a vaquinha pro presente de casamento da chefe. O app mostra quem pagou, evitou aquela confusão de cobrar um por um."</p>
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-pink-900/50 text-pink-400 flex items-center justify-center text-xs font-bold">BA</div>
-                    <span class="text-xs font-bold text-zinc-500">Bia A.</span>
-                </div>
-            </div>
-            
-            <div class="w-80 p-6 rounded-2xl bg-zinc-900 border border-zinc-800 shrink-0">
-                <div class="flex items-center gap-1 mb-3 text-emerald-400">★★★★★</div>
-                <p class="text-sm text-zinc-300 mb-4">"Alugamos um sítio pro Carnaval e usei o plano Pro. Poder aprovar os comprovantes me salvou de calote."</p>
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-yellow-900/50 text-yellow-400 flex items-center justify-center text-xs font-bold">TH</div>
-                    <span class="text-xs font-bold text-zinc-500">Thiago H.</span>
-                </div>
+            <!-- Setas de navegação: Flex abaixo no mobile, Absolute laterais no desktop -->
+            <div class="flex justify-center gap-4 mt-2 md:absolute md:inset-x-0 md:top-1/2 md:-translate-y-1/2 md:justify-between md:mt-0 md:pointer-events-none z-30 px-2 md:px-4">
+                <button onclick="scrollTestimonials(-1)" class="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 text-white flex items-center justify-center hover:bg-zinc-700 transition shadow-lg md:pointer-events-auto" aria-label="Anterior">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                </button>
+                <button onclick="scrollTestimonials(1)" class="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 text-white flex items-center justify-center hover:bg-zinc-700 transition shadow-lg md:pointer-events-auto" aria-label="Próximo">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </button>
             </div>
 
         </div>
@@ -310,45 +327,38 @@
         const mp = new MercadoPago('APP_USR-561b52d7-6bf5-4726-80ae-b6b3b512c79d', {
             locale: 'pt-BR'
         });
-
-        // LÓGICA DE PAGAMENTO (Planos Plus e Pro)
-        async function handlePayment(plan) {
-            const btn = plan === 'plus' ? document.querySelector('button[onclick="handlePayment(\'plus\')"]') : document.querySelector('button[onclick="handlePayment(\'pro\')"]');
-            const originalText = btn.innerText;
+        
+        // FUNÇÃO DE SCROLL DOS DEPOIMENTOS
+        function scrollTestimonials(direction) {
+            const container = document.getElementById('testimonials');
+            const scrollAmount = 340; // Largura do card + gap aproximado
             
-            btn.disabled = true;
-            btn.innerHTML = '<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Processando...';
-
-            try {
-                // Chama seu backend para criar a preferência
-                const response = await fetch('/api/create_preference', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ plan: plan }),
-                });
-
-                const preference = await response.json();
-
-                // Abre o checkout do Mercado Pago
-                mp.checkout({
-                    preference: {
-                        id: preference.id
-                    },
-                    autoOpen: true,
-                });
-
-            } catch (error) {
-                alert("Erro ao iniciar pagamento. Verifique o console.");
-                console.error(error);
-            } finally {
-                btn.disabled = false;
-                btn.innerText = originalText;
+            if (direction === 1) {
+                container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+            } else {
+                container.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
             }
         }
 
-        // LÓGICA DO FORMULÁRIO GRÁTIS
+        // FUNÇÃO PARA SELECIONAR PLANO E ROLAR PARA O FORMULÁRIO
+        function selectPlan(plan) {
+            // Define o valor do input hidden
+            const planInput = document.getElementById('selected_plan');
+            planInput.value = plan;
+
+            // Altera o texto do botão de submit
+            const submitBtn = document.getElementById('submitBtn');
+            if (plan === 'plus' || plan === 'pro') {
+                submitBtn.innerText = 'Cadastrar e Pagar';
+            } else {
+                submitBtn.innerText = 'Criar Vaquinha Grátis';
+            }
+
+            // Scroll suave até o formulário
+            document.getElementById('criar').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // LÓGICA DO FORMULÁRIO
         document.getElementById('creationForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const btn = e.target.querySelector('button');
@@ -360,11 +370,12 @@
                 subdomain: document.getElementById('subdomain').value,
                 email: document.getElementById('email').value,
                 pix_key: document.getElementById('pix_key').value,
-                password: document.getElementById('password').value
+                password: document.getElementById('password').value,
+                plan: document.getElementById('selected_plan').value // Envia o plano selecionado
             };
             
             btn.disabled = true; 
-            btn.innerHTML = '<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Criando ambiente...';
+            btn.innerHTML = '<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Processando...';
             btn.classList.add('opacity-80', 'cursor-not-allowed');
 
             try {
@@ -378,6 +389,12 @@
                 msg.classList.remove('hidden');
                 
                 if (json.status === 'success') {
+                    // Verifica se há URL de checkout para redirecionamento
+                    if (json.checkout_url) {
+                        window.location.href = json.checkout_url;
+                        return; // Interrompe para não mostrar a mensagem de sucesso padrão
+                    }
+
                     const publicLink = json.url; 
                     const adminLink = `${publicLink}?admin=${json.admin_token}`;
                     
@@ -416,9 +433,12 @@
                     </div>
                 `;
             } finally {
-                btn.disabled = false; 
-                btn.innerText = originalBtnText;
-                btn.classList.remove('opacity-80', 'cursor-not-allowed');
+                // Só reabilita o botão se não estiver redirecionando
+                if (!window.location.href.includes('mercadopago')) {
+                    btn.disabled = false; 
+                    btn.innerText = originalBtnText;
+                    btn.classList.remove('opacity-80', 'cursor-not-allowed');
+                }
             }
         });
     </script>
