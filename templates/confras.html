@@ -7,37 +7,34 @@
     <meta name="description" content="Crie links de pagamento personalizados para churrascos, presentes, viagens e eventos corporativos. Receba via PIX direto na sua conta.">
     
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://sdk.mercadopago.com/js/v2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
         
-        /* Efeito de Vidro */
         .glass-panel {
             background: rgba(255, 255, 255, 0.03);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
         
-        /* Texto Gradiente */
         .gradient-text {
             background: linear-gradient(to right, #34d399, #2dd4bf);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
-        /* Animação do Carrossel de Depoimentos */
         @keyframes scroll {
             0% { transform: translateX(0); }
             100% { transform: translateX(-50%); }
         }
         .animate-scroll {
-            animation: scroll 60s linear infinite; /* Velocidade suave */
+            animation: scroll 60s linear infinite;
         }
         .animate-scroll:hover {
             animation-play-state: paused;
         }
         
-        /* Utilitários */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
@@ -217,7 +214,9 @@
                         <li class="flex items-center gap-2"><svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Cores do seu Evento</li>
                         <li class="flex items-center gap-2"><svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Controle de Itens</li>
                     </ul>
-                    <a href="#criar" class="block w-full py-2.5 rounded-lg bg-blue-600 text-white text-center text-sm font-bold hover:bg-blue-500 transition">Escolher Plus</a>
+                    <button onclick="handlePayment('plus')" class="block w-full py-2.5 rounded-lg bg-blue-600 text-white text-center text-sm font-bold hover:bg-blue-500 transition">
+                        Escolher Plus
+                    </button>
                 </div>
 
                 <div class="p-6 rounded-2xl bg-gradient-to-b from-zinc-800 to-zinc-900 border border-emerald-500/30 flex flex-col relative overflow-hidden h-full md:hover:scale-105 transition duration-300">
@@ -230,7 +229,9 @@
                         <li class="flex items-center gap-2"><svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Upload de Comprovante</li>
                         <li class="flex items-center gap-2"><svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Painel Admin Completo</li>
                     </ul>
-                    <a href="#criar" class="block w-full py-2.5 rounded-lg bg-emerald-600 text-white text-center text-sm font-bold hover:bg-emerald-500 transition shadow-lg shadow-emerald-500/20">Escolher Pro</a>
+                    <button onclick="handlePayment('pro')" class="block w-full py-2.5 rounded-lg bg-emerald-600 text-white text-center text-sm font-bold hover:bg-emerald-500 transition shadow-lg shadow-emerald-500/20">
+                        Escolher Pro
+                    </button>
                 </div>
 
             </div>
@@ -295,52 +296,7 @@
                     <span class="text-xs font-bold text-zinc-500">Thiago H.</span>
                 </div>
             </div>
-
-            <div class="w-80 p-6 rounded-2xl bg-zinc-900 border border-zinc-800 shrink-0">
-                <div class="flex items-center gap-1 mb-3 text-emerald-400">★★★★★</div>
-                <p class="text-sm text-zinc-300 mb-4">"Moro com mais 3 pessoas. Todo mês crio um link 'Contas Maio' e mando no grupo. Acabou a briga."</p>
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-orange-900/50 text-orange-400 flex items-center justify-center text-xs font-bold">CL</div>
-                    <span class="text-xs font-bold text-zinc-500">Carol L.</span>
-                </div>
-            </div>
-
-            <div class="w-80 p-6 rounded-2xl bg-zinc-900 border border-zinc-800 shrink-0">
-                <div class="flex items-center gap-1 mb-3 text-emerald-400">★★★★★</div>
-                <p class="text-sm text-zinc-300 mb-4">"Sou professora de yoga e uso pra cobrar meus aulões no parque. Passo o link e as alunas já pagam na hora."</p>
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-teal-900/50 text-teal-400 flex items-center justify-center text-xs font-bold">SA</div>
-                    <span class="text-xs font-bold text-zinc-500">Sofia A.</span>
-                </div>
-            </div>
-
-            <div class="w-80 p-6 rounded-2xl bg-zinc-900 border border-zinc-800 shrink-0">
-                <div class="flex items-center gap-1 mb-3 text-emerald-400">★★★★★</div>
-                <p class="text-sm text-zinc-300 mb-4">"A comissão de formatura tava perdida. O Divide o Pix organizou tudo. O painel admin é muito útil."</p>
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-indigo-900/50 text-indigo-400 flex items-center justify-center text-xs font-bold">JP</div>
-                    <span class="text-xs font-bold text-zinc-500">João P.</span>
-                </div>
-            </div>
-
-            <div class="w-80 p-6 rounded-2xl bg-zinc-900 border border-zinc-800 shrink-0">
-                <div class="flex items-center gap-1 mb-3 text-emerald-400">★★★★★</div>
-                <p class="text-sm text-zinc-300 mb-4">"Fomos em 15 pessoas no japonês. Ninguém tinha troco. Criei o link na mesa mesmo e resolveu."</p>
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-red-900/50 text-red-400 flex items-center justify-center text-xs font-bold">FE</div>
-                    <span class="text-xs font-bold text-zinc-500">Felipe E.</span>
-                </div>
-            </div>
-
-            <div class="w-80 p-6 rounded-2xl bg-zinc-900 border border-zinc-800 shrink-0">
-                <div class="flex items-center gap-1 mb-3 text-emerald-400">★★★★★</div>
-                <p class="text-sm text-zinc-300 mb-4">"A transparência é o melhor. Todo mundo vê quem já pagou na lista pública, isso gera uma pressão social ótima rs."</p>
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-gray-800 text-gray-400 flex items-center justify-center text-xs font-bold">AN</div>
-                    <span class="text-xs font-bold text-zinc-500">Ana N.</span>
-                </div>
-            </div>
-
+            
             <div class="w-80 p-6 rounded-2xl bg-zinc-900 border border-zinc-800 shrink-0">
                 <div class="flex items-center gap-1 mb-3 text-emerald-400">★★★★★</div>
                 <p class="text-sm text-zinc-300 mb-4">"Nunca mais briguei por causa de centavos na pizza de sexta-feira. Mando o link no grupo e todo mundo paga pianinho."</p>
@@ -349,36 +305,13 @@
                     <span class="text-xs font-bold text-zinc-500">Lucas C.</span>
                 </div>
             </div>
-            <div class="w-80 p-6 rounded-2xl bg-zinc-900 border border-zinc-800 shrink-0">
+            
+             <div class="w-80 p-6 rounded-2xl bg-zinc-900 border border-zinc-800 shrink-0">
                 <div class="flex items-center gap-1 mb-3 text-emerald-400">★★★★★</div>
                 <p class="text-sm text-zinc-300 mb-4">"Organizar o churrasco da firma era um pesadelo com planilha. Com o Divide o Pix, resolvi tudo em 10 minutos."</p>
                 <div class="flex items-center gap-3">
                     <div class="w-8 h-8 rounded-full bg-blue-900/50 text-blue-400 flex items-center justify-center text-xs font-bold">MP</div>
                     <span class="text-xs font-bold text-zinc-500">Mariana P.</span>
-                </div>
-            </div>
-            <div class="w-80 p-6 rounded-2xl bg-zinc-900 border border-zinc-800 shrink-0">
-                <div class="flex items-center gap-1 mb-3 text-emerald-400">★★★★★</div>
-                <p class="text-sm text-zinc-300 mb-4">"O futebol de quarta-feira agora é pré-pago. Quem não manda o comprovante no link, não joga. Simples assim."</p>
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-purple-900/50 text-purple-400 flex items-center justify-center text-xs font-bold">RJ</div>
-                    <span class="text-xs font-bold text-zinc-500">Rafael J.</span>
-                </div>
-            </div>
-            <div class="w-80 p-6 rounded-2xl bg-zinc-900 border border-zinc-800 shrink-0">
-                <div class="flex items-center gap-1 mb-3 text-emerald-400">★★★★★</div>
-                <p class="text-sm text-zinc-300 mb-4">"Fizemos a vaquinha pro presente de casamento da chefe. O app mostra quem pagou, evitou aquela confusão de cobrar um por um."</p>
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-pink-900/50 text-pink-400 flex items-center justify-center text-xs font-bold">BA</div>
-                    <span class="text-xs font-bold text-zinc-500">Bia A.</span>
-                </div>
-            </div>
-            <div class="w-80 p-6 rounded-2xl bg-zinc-900 border border-zinc-800 shrink-0">
-                <div class="flex items-center gap-1 mb-3 text-emerald-400">★★★★★</div>
-                <p class="text-sm text-zinc-300 mb-4">"Alugamos um sítio pro Carnaval e usei o plano Pro. Poder aprovar os comprovantes me salvou de calote."</p>
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-yellow-900/50 text-yellow-400 flex items-center justify-center text-xs font-bold">TH</div>
-                    <span class="text-xs font-bold text-zinc-500">Thiago H.</span>
                 </div>
             </div>
 
@@ -390,13 +323,56 @@
     </footer>
 
     <script>
+        // CONFIGURAÇÃO MERCADO PAGO
+        // Substitua 'YOUR_PUBLIC_KEY' pela sua chave pública do Mercado Pago
+        const mp = new MercadoPago('YOUR_PUBLIC_KEY', {
+            locale: 'pt-BR'
+        });
+
+        // LÓGICA DE PAGAMENTO (Planos Plus e Pro)
+        async function handlePayment(plan) {
+            const btn = plan === 'plus' ? document.querySelector('button[onclick="handlePayment(\'plus\')"]') : document.querySelector('button[onclick="handlePayment(\'pro\')"]');
+            const originalText = btn.innerText;
+            
+            btn.disabled = true;
+            btn.innerHTML = '<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Processando...';
+
+            try {
+                // Chama seu backend para criar a preferência
+                const response = await fetch('/api/create_preference', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ plan: plan }),
+                });
+
+                const preference = await response.json();
+
+                // Abre o checkout do Mercado Pago
+                mp.checkout({
+                    preference: {
+                        id: preference.id
+                    },
+                    autoOpen: true,
+                });
+
+            } catch (error) {
+                alert("Erro ao iniciar pagamento. Verifique o console.");
+                console.error(error);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = originalText;
+            }
+        }
+
+        // LÓGICA DO FORMULÁRIO GRÁTIS (Mantida)
         document.getElementById('creationForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const btn = e.target.querySelector('button');
             const msg = document.getElementById('message');
             const originalBtnText = btn.innerText;
             
-            // COLETA DE DADOS
             const data = {
                 company_name: document.getElementById('company_name').value,
                 subdomain: document.getElementById('subdomain').value,
@@ -405,13 +381,11 @@
                 password: document.getElementById('password').value
             };
             
-            // ESTADO DE CARREGAMENTO
             btn.disabled = true; 
             btn.innerHTML = '<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Criando ambiente...';
             btn.classList.add('opacity-80', 'cursor-not-allowed');
 
             try {
-                // CHAMADA PARA API CORRIGIDA (AGORA _FREE)
                 const res = await fetch('/api/create_tenant_free', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -425,7 +399,6 @@
                     const publicLink = json.url; 
                     const adminLink = `${publicLink}?admin=${json.admin_token}`;
                     
-                    // SUCESSO VISUAL (ADAPTADO PARA FUNDO CLARO)
                     msg.innerHTML = `
                         <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-6">
                             <div class="flex items-center gap-3 mb-4">
@@ -455,7 +428,6 @@
                     throw new Error(json.message);
                 }
             } catch (err) {
-                // ERRO VISUAL
                 msg.innerHTML = `
                     <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-600 text-sm text-center">
                         ${err.message || 'Ocorreu um erro ao criar.'}
