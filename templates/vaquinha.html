@@ -18,6 +18,10 @@
         :root {
             --brand-primary: {{ tenant.primary_color | default('#10B981') }}; 
         }
+        /* Transição suave para o banner */
+        .banner-transition {
+            transition: opacity 1s ease-in-out;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 min-h-screen flex flex-col dark:bg-gray-900 dark:text-gray-100 transition-colors duration-300">
@@ -87,6 +91,14 @@
                     </h2>
                 </div>
                 <div class="p-6">
+                    
+                    {% if tenant.valor_pix %}
+                    <div class="mb-5 p-4 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center justify-between dark:bg-emerald-900/20 dark:border-emerald-800">
+                        <span class="text-sm text-emerald-800 font-semibold dark:text-emerald-300">Valor por pessoa:</span>
+                        <span class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">R$ {{ tenant.valor_pix }}</span>
+                    </div>
+                    {% endif %}
+
                     <p class="text-xs font-bold text-gray-500 uppercase mb-2 dark:text-gray-400">Chave PIX (Copie abaixo)</p>
                     
                     <div class="relative flex items-center group">
@@ -154,7 +166,37 @@
             </div>
 
         </div>
-    </main>
+
+        <div class="mt-12 mb-8 relative w-full overflow-hidden rounded-2xl shadow-xl group cursor-pointer border border-gray-200 dark:border-gray-700">
+            <a href="/" target="_blank" class="block relative h-28 md:h-36">
+                
+                <div id="banner1" class="banner-slide absolute inset-0 bg-gradient-to-r from-violet-600 to-indigo-600 flex items-center justify-between px-6 md:px-10 transition-opacity duration-1000 opacity-100">
+                    <div class="text-white z-10">
+                        <div class="bg-white/20 backdrop-blur-md inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase mb-2 tracking-wider">Divide o Pix</div>
+                        <h3 class="text-lg md:text-2xl font-extrabold leading-tight">Organizando o próximo rolê?</h3>
+                        <p class="text-indigo-100 text-xs md:text-sm mt-1">Pare de sofrer cobrando no WhatsApp.</p>
+                    </div>
+                    <div class="shrink-0 ml-4 bg-white text-indigo-700 px-4 py-2 md:px-6 md:py-3 rounded-full font-bold text-xs md:text-sm shadow-lg transform group-hover:scale-105 transition">
+                        Criar Grátis
+                    </div>
+                    <div class="absolute right-[-20px] top-[-20px] w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+                </div>
+
+                <div id="banner2" class="banner-slide absolute inset-0 bg-gradient-to-r from-orange-500 to-rose-500 flex items-center justify-between px-6 md:px-10 transition-opacity duration-1000 opacity-0">
+                    <div class="text-white z-10">
+                        <div class="bg-white/20 backdrop-blur-md inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase mb-2 tracking-wider">100% Automático</div>
+                        <h3 class="text-lg md:text-2xl font-extrabold leading-tight">Receba Pix sem Stress!</h3>
+                        <p class="text-orange-50 text-xs md:text-sm mt-1">Crie seu link personalizado em 1 minuto.</p>
+                    </div>
+                    <div class="shrink-0 ml-4 bg-white text-rose-600 px-4 py-2 md:px-6 md:py-3 rounded-full font-bold text-xs md:text-sm shadow-lg transform group-hover:scale-105 transition">
+                        Começar Agora
+                    </div>
+                    <div class="absolute left-[-20px] bottom-[-20px] w-32 h-32 bg-yellow-300/20 rounded-full blur-2xl pointer-events-none"></div>
+                </div>
+
+            </a>
+        </div>
+        </main>
 
     <footer class="mt-auto py-8 text-center text-gray-400 text-sm dark:text-gray-600">
         <p>Powered by <strong class="text-gray-600 dark:text-gray-400">Divide o Pix</strong></p>
@@ -209,6 +251,32 @@
                     document.documentElement.classList.add('dark');
                     localStorage.setItem('color-theme', 'dark');
                 }
+            }
+        });
+
+        // --- ROTAÇÃO DOS BANNERS (NOVO SCRIPT) ---
+        // Alterna entre banner1 e banner2 a cada 4 segundos
+        document.addEventListener("DOMContentLoaded", function() {
+            let currentBanner = 1;
+            const b1 = document.getElementById('banner1');
+            const b2 = document.getElementById('banner2');
+            
+            if(b1 && b2) {
+                setInterval(() => {
+                    if(currentBanner === 1) {
+                        b1.classList.remove('opacity-100');
+                        b1.classList.add('opacity-0');
+                        b2.classList.remove('opacity-0');
+                        b2.classList.add('opacity-100');
+                        currentBanner = 2;
+                    } else {
+                        b2.classList.remove('opacity-100');
+                        b2.classList.add('opacity-0');
+                        b1.classList.remove('opacity-0');
+                        b1.classList.add('opacity-100');
+                        currentBanner = 1;
+                    }
+                }, 4500); // 4.5 segundos para dar tempo de ler
             }
         });
 

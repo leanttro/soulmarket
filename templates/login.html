@@ -10,26 +10,27 @@
         body { font-family: 'Inter', sans-serif; }
     </style>
 </head>
-<body class="bg-zinc-950 text-white h-screen flex items-center justify-center overflow-hidden relative">
+<body class="bg-zinc-950 text-white min-h-screen flex flex-col items-center justify-center overflow-hidden relative">
 
     <div class="absolute inset-0 overflow-hidden pointer-events-none -z-10">
         <div class="absolute top-[20%] left-[20%] w-[40%] h-[40%] bg-emerald-500/10 rounded-full blur-[100px]"></div>
         <div class="absolute bottom-[20%] right-[20%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[100px]"></div>
     </div>
 
-    <div class="w-full max-w-md p-6">
+    <div class="w-full max-w-md p-6 flex-grow flex flex-col justify-center">
         
         <div class="text-center mb-8">
             <a href="confras.html" class="inline-flex items-center gap-2 mb-4 hover:opacity-80 transition">
                 <div class="w-8 h-8 bg-gradient-to-br from-emerald-400 to-teal-600 rounded-lg flex items-center justify-center font-bold text-zinc-900">$</div>
                 <span class="font-bold text-lg tracking-tight">Divide o PIX</span>
             </a>
-            <h1 class="text-2xl font-bold">Bem-vindo de volta</h1>
+            <h1 class="text-2xl font-bold" id="pageTitle">Bem-vindo de volta</h1>
             <p class="text-zinc-500 text-sm mt-2">Acesse seu painel para gerenciar suas vaquinhas.</p>
         </div>
 
-        <div class="bg-zinc-900/50 backdrop-blur-md border border-white/10 p-8 rounded-2xl shadow-2xl">
-            <form id="loginForm" class="space-y-4">
+        <div class="bg-zinc-900/50 backdrop-blur-md border border-white/10 p-8 rounded-2xl shadow-2xl relative overflow-hidden">
+            
+            <form id="loginForm" class="space-y-4 transition-all duration-300">
                 <div class="space-y-1">
                     <label class="text-xs font-bold text-zinc-500 uppercase">E-mail</label>
                     <input type="email" id="email" required 
@@ -39,7 +40,7 @@
                 <div class="space-y-1">
                     <div class="flex justify-between items-center">
                         <label class="text-xs font-bold text-zinc-500 uppercase">Senha</label>
-                        <a href="#" class="text-[10px] text-emerald-500 hover:text-emerald-400">Esqueceu?</a>
+                        <button type="button" onclick="showForgot()" class="text-[10px] text-emerald-500 hover:text-emerald-400 hover:underline">Esqueceu?</button>
                     </div>
                     <input type="password" id="password" required 
                         class="w-full bg-zinc-950/50 border border-zinc-700 text-white rounded-lg px-4 py-3 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition placeholder-zinc-600">
@@ -49,8 +50,34 @@
                     Entrar no Painel
                 </button>
             </form>
+
+            <form id="forgotForm" class="space-y-4 hidden transition-all duration-300">
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-zinc-500 uppercase">Seu E-mail de Cadastro</label>
+                    <input type="email" id="forgotEmail" required 
+                        class="w-full bg-zinc-950/50 border border-zinc-700 text-white rounded-lg px-4 py-3 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition placeholder-zinc-600">
+                </div>
+                <button type="submit" id="btnForgot" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg shadow-lg shadow-blue-600/20 transform transition active:scale-95 mt-2">
+                    Enviar Link de Recuperação
+                </button>
+                <button type="button" onclick="showLogin()" class="w-full text-center text-xs text-zinc-500 hover:text-white mt-4">
+                    Voltar para Login
+                </button>
+            </form>
+
+            <form id="resetForm" class="space-y-4 hidden transition-all duration-300">
+                <input type="hidden" id="resetToken">
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-zinc-500 uppercase">Nova Senha</label>
+                    <input type="password" id="newPassword" required placeholder="Digite sua nova senha"
+                        class="w-full bg-zinc-950/50 border border-zinc-700 text-white rounded-lg px-4 py-3 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition placeholder-zinc-600">
+                </div>
+                <button type="submit" id="btnReset" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-lg shadow-lg shadow-emerald-600/20 transform transition active:scale-95 mt-2">
+                    Salvar Nova Senha
+                </button>
+            </form>
             
-            <div id="errorMsg" class="hidden mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-xs text-center"></div>
+            <div id="statusMsg" class="hidden mt-4 p-3 rounded-lg text-xs text-center border"></div>
         </div>
 
         <p class="text-center text-zinc-600 text-xs mt-8">
@@ -58,43 +85,146 @@
         </p>
     </div>
 
+    <footer class="w-full py-6 bg-zinc-950/80 border-t border-white/5 backdrop-blur-sm">
+        <div class="container mx-auto px-4 flex flex-col md:flex-row justify-center items-center gap-6">
+            <span class="text-xs text-zinc-500 font-bold uppercase tracking-wider">Fale Conosco:</span>
+            
+            <a href="https://wa.me/5511976232235" target="_blank" class="flex items-center gap-2 text-zinc-400 hover:text-emerald-400 transition group">
+                <div class="p-2 bg-zinc-900 rounded-full border border-zinc-800 group-hover:border-emerald-500/50 transition">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.017-1.04 2.479 0 1.462 1.065 2.876 1.213 3.074.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+                </div>
+                <span class="text-sm font-medium">(11) 97623-2235</span>
+            </a>
+
+            <a href="mailto:comercial@leanttro.com" class="flex items-center gap-2 text-zinc-400 hover:text-blue-400 transition group">
+                <div class="p-2 bg-zinc-900 rounded-full border border-zinc-800 group-hover:border-blue-500/50 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                </div>
+                <span class="text-sm font-medium">comercial@leanttro.com</span>
+            </a>
+        </div>
+    </footer>
+
     <script>
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        const loginForm = document.getElementById('loginForm');
+        const forgotForm = document.getElementById('forgotForm');
+        const resetForm = document.getElementById('resetForm');
+        const msgDiv = document.getElementById('statusMsg');
+        const pageTitle = document.getElementById('pageTitle');
+
+        // Verifica se tem token na URL ao carregar
+        window.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const token = params.get('reset_token');
+            
+            if (token) {
+                showReset(token);
+            }
+        });
+
+        function showForgot() {
+            loginForm.classList.add('hidden');
+            forgotForm.classList.remove('hidden');
+            pageTitle.innerText = "Recuperar Senha";
+            clearMsg();
+        }
+
+        function showLogin() {
+            forgotForm.classList.add('hidden');
+            resetForm.classList.add('hidden');
+            loginForm.classList.remove('hidden');
+            pageTitle.innerText = "Bem-vindo de volta";
+            clearMsg();
+            // Limpa URL
+            window.history.replaceState({}, document.title, "/login.html");
+        }
+
+        function showReset(token) {
+            loginForm.classList.add('hidden');
+            forgotForm.classList.add('hidden');
+            resetForm.classList.remove('hidden');
+            document.getElementById('resetToken').value = token;
+            pageTitle.innerText = "Criar Nova Senha";
+        }
+
+        function showMsg(text, type='error') {
+            msgDiv.innerText = text;
+            msgDiv.classList.remove('hidden', 'bg-red-500/10', 'border-red-500/20', 'text-red-400', 'bg-emerald-500/10', 'border-emerald-500/20', 'text-emerald-400');
+            
+            if(type === 'error') {
+                msgDiv.classList.add('bg-red-500/10', 'border-red-500/20', 'text-red-400');
+            } else {
+                msgDiv.classList.add('bg-emerald-500/10', 'border-emerald-500/20', 'text-emerald-400');
+            }
+        }
+
+        function clearMsg() { msgDiv.classList.add('hidden'); }
+
+        // 1. LOGIN
+        loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('btnSubmit');
-            const msg = document.getElementById('errorMsg');
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-
             const originalText = btn.innerText;
-            btn.innerText = 'Verificando...';
-            btn.disabled = true;
-            btn.classList.add('opacity-70');
-            msg.classList.add('hidden');
-
+            btn.innerText = 'Entrando...'; btn.disabled = true;
+            
             try {
                 const res = await fetch('/api/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
+                    body: JSON.stringify({
+                        email: document.getElementById('email').value,
+                        password: document.getElementById('password').value
+                    })
                 });
-
                 const data = await res.json();
+                if (res.ok) window.location.href = `/admin?email=${data.email}`;
+                else showMsg(data.message || 'Erro ao entrar');
+            } catch (err) { showMsg('Erro de conexão'); }
+            finally { btn.innerText = originalText; btn.disabled = false; }
+        });
 
-                if (res.ok && data.email) {
-                    localStorage.setItem('admin_token', data.token);
-                    window.location.href = `/admin?email=${data.email}`;
-                } else {
-                    throw new Error(data.message || 'Credenciais inválidas');
-                }
-            } catch (err) {
-                msg.innerText = err.message;
-                msg.classList.remove('hidden');
-            } finally {
-                btn.innerText = originalText;
-                btn.disabled = false;
-                btn.classList.remove('opacity-70');
-            }
+        // 2. ESQUECI A SENHA
+        forgotForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnForgot');
+            const originalText = btn.innerText;
+            btn.innerText = 'Enviando...'; btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/request_reset', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: document.getElementById('forgotEmail').value })
+                });
+                const data = await res.json();
+                if(res.ok) showMsg(data.message, 'success');
+                else showMsg(data.message);
+            } catch (err) { showMsg('Erro de conexão'); }
+            finally { btn.innerText = originalText; btn.disabled = false; }
+        });
+
+        // 3. REDEFINIR SENHA
+        resetForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnReset');
+            btn.innerText = 'Salvando...'; btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/reset_password_confirm', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        token: document.getElementById('resetToken').value,
+                        password: document.getElementById('newPassword').value
+                    })
+                });
+                const data = await res.json();
+                if(res.ok) {
+                    showMsg("Senha alterada! Redirecionando...", 'success');
+                    setTimeout(showLogin, 2000);
+                } else showMsg(data.message);
+            } catch (err) { showMsg('Erro de conexão'); }
+            finally { btn.innerText = 'Salvar Nova Senha'; btn.disabled = false; }
         });
     </script>
 </body>
