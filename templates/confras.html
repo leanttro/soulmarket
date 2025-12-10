@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Divide o PIX | A forma mais fácil de organizar vaquinhas e eventos</title>
-    <meta name="description" content="Crie links de pagamento personalizados para churrascos, presentes, viagens e eventos corporativos. Receba via PIX direto na sua conta.">
+    <title>Divide o PIX | App para Organizar Churrasco e Rateio Online</title>
+    <meta name="description" content="A ferramenta gratuita para organizar a lista do churrasco, festa ou vaquinha. Crie seu link, receba PIX e controle quem pagou automaticamente.">
+    <meta name="keywords" content="rateio pix, organizar churrasco, lista de presença, vaquinha online, dividir conta, pix parcelado santander (evitar)">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://sdk.mercadopago.com/js/v2"></script>
@@ -37,6 +38,10 @@
         
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Animação suave para o formulário */
+        .animate-fade-in { animation: fadeIn 0.5s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body class="bg-zinc-950 text-white selection:bg-emerald-500 selection:text-white overflow-x-hidden">
@@ -62,22 +67,21 @@
         </div>
     </nav>
 
-    <main class="container mx-auto px-4 py-6 md:py-10 flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
-        
-        <div class="lg:w-1/2 space-y-8 text-center lg:text-left">
+    <main class="container mx-auto px-4 py-16 md:py-24 text-center">
+        <div class="space-y-8 max-w-4xl mx-auto">
             <div class="inline-flex items-center px-3 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-2">
                 🚀 Lançamento Oficial
             </div>
-            <h1 class="text-4xl md:text-6xl font-extrabold leading-tight">
+            <h1 class="text-5xl md:text-7xl font-extrabold leading-tight">
                 Nunca foi tão fácil <br>
                 <span class="gradient-text">organizar o rateio.</span>
             </h1>
-            <p class="text-lg text-zinc-400 leading-relaxed max-w-xl mx-auto lg:mx-0">
+            <p class="text-xl text-zinc-400 leading-relaxed max-w-2xl mx-auto">
                 Do churrasco de domingo à festa da firma. Crie um link personalizado, receba os comprovantes e gerencie quem pagou. 
                 <strong class="text-zinc-200">Tudo automático.</strong>
             </p>
             
-            <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start text-sm text-zinc-500">
+            <div class="flex flex-col sm:flex-row gap-6 justify-center text-sm text-zinc-500 mt-8">
                 <div class="flex items-center gap-2">
                     <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                     Recebimento Instantâneo
@@ -87,77 +91,16 @@
                     Painel de Gestão
                 </div>
             </div>
-        </div>
 
-        <div id="criar" class="lg:w-1/2 w-full max-w-md mx-auto relative group">
-            
-            <div class="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl blur opacity-30 group-hover:opacity-50 transition duration-1000"></div>
-            
-            <div class="bg-white p-8 rounded-2xl relative shadow-2xl border border-zinc-200">
-                <div class="mb-6">
-                    <h3 class="text-xl font-bold text-zinc-900 mb-1">Crie sua conta Grátis</h3>
-                    <p class="text-xs text-zinc-500">Comece em menos de 30 segundos.</p>
-                </div>
-
-                <form id="creationForm" class="space-y-5">
-                    <!-- Input Hidden para o Plano Selecionado -->
-                    <input type="hidden" id="selected_plan" name="selected_plan" value="">
-
-                    <div class="space-y-1">
-                        <label class="text-xs font-bold text-zinc-500 uppercase">Nome da Vaquinha / Evento</label>
-                        <input type="text" id="company_name" required placeholder="Ex: Churras da Turma" 
-                            class="w-full bg-white border border-zinc-300 text-zinc-900 rounded-lg px-4 py-3 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition placeholder-zinc-400">
-                    </div>
-
-                    <div class="space-y-1">
-                        <label class="text-xs font-bold text-zinc-500 uppercase">Link Personalizado</label>
-                        <div class="flex rounded-lg overflow-hidden border border-zinc-300 focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition">
-                            <span class="bg-zinc-100 text-zinc-500 px-3 py-3 text-xs flex items-center border-r border-zinc-300 select-none font-medium">
-                                divideopix.com.br/
-                            </span>
-                            <input type="text" id="subdomain" required placeholder="festa-do-joao" 
-                                class="flex-1 bg-white text-zinc-900 px-3 py-3 text-sm outline-none placeholder-zinc-400 font-medium">
-                        </div>
-                    </div>
-
-                    <div class="space-y-1">
-                        <label class="text-xs font-bold text-zinc-500 uppercase flex justify-between">
-                            Chave PIX
-                            <span class="text-[10px] text-emerald-600 font-bold">Onde você vai receber</span>
-                        </label>
-                        <input type="text" id="pix_key" required placeholder="CPF, E-mail ou Celular" 
-                            class="w-full bg-white border border-zinc-300 text-zinc-900 rounded-lg px-4 py-3 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition placeholder-zinc-400 font-mono">
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="space-y-1">
-                            <label class="text-xs font-bold text-zinc-500 uppercase">Seu E-mail</label>
-                            <input type="email" id="email" required placeholder="admin@email.com"
-                                class="w-full bg-white border border-zinc-300 text-zinc-900 rounded-lg px-4 py-3 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition placeholder-zinc-400">
-                        </div>
-                        <div class="space-y-1">
-                            <label class="text-xs font-bold text-zinc-500 uppercase">Criar Senha</label>
-                            <input type="password" id="password" required placeholder="******"
-                                class="w-full bg-white border border-zinc-300 text-zinc-900 rounded-lg px-4 py-3 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition placeholder-zinc-400">
-                        </div>
-                    </div>
-
-                    <button type="submit" id="submitBtn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-600/30 transform transition hover:-translate-y-0.5 active:translate-y-0 mt-2">
-                        Criar Vaquinha Grátis
-                    </button>
-                    
-                    <p class="text-[10px] text-center text-zinc-400">
-                        Ao continuar, você concorda com nossos termos. Dados protegidos.
-                    </p>
-                </form>
-
-                <div id="message" class="mt-4 hidden animate-fade-in">
-                    </div>
+            <div class="pt-8">
+                <a href="#como-funciona" class="animate-bounce inline-block text-zinc-500 hover:text-white transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                </a>
             </div>
         </div>
     </main>
 
-    <section id="como-funciona" class="border-t border-white/5 bg-zinc-900/30 py-10">
+    <section id="como-funciona" class="border-t border-white/5 bg-zinc-900/30 py-16">
         <div class="container mx-auto px-4">
             <div class="text-center mb-16">
                 <h2 class="text-2xl md:text-3xl font-bold mb-4">Como funciona?</h2>
@@ -184,7 +127,7 @@
         </div>
     </section>
 
-    <section id="precos" class="py-10 relative">
+    <section id="precos" class="py-16 relative">
         <div class="container mx-auto px-4">
             <div class="text-center mb-12">
                 <h2 class="text-2xl md:text-3xl font-bold mb-4">Escolha seu plano</h2>
@@ -256,7 +199,6 @@
             <div class="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-zinc-950 to-transparent z-20 pointer-events-none hidden md:block"></div>
 
             <div id="testimonials" class="flex gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth no-scrollbar pb-4 items-stretch">
-                
                 <div class="w-80 p-6 rounded-2xl bg-zinc-900 border border-zinc-800 shrink-0 snap-center">
                     <div class="flex items-center gap-1 mb-3 text-emerald-400">★★★★★</div>
                     <p class="text-sm text-zinc-300 mb-4">"Nunca mais briguei por causa de centavos na pizza de sexta-feira. Mando o link no grupo e todo mundo paga pianinho."</p>
@@ -304,7 +246,6 @@
 
             </div>
 
-            <!-- Setas de navegação: Flex abaixo no mobile, Absolute laterais no desktop -->
             <div class="flex justify-center gap-4 mt-2 md:absolute md:inset-x-0 md:top-1/2 md:-translate-y-1/2 md:justify-between md:mt-0 md:pointer-events-none z-30 px-2 md:px-4">
                 <button onclick="scrollTestimonials(-1)" class="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 text-white flex items-center justify-center hover:bg-zinc-700 transition shadow-lg md:pointer-events-auto" aria-label="Anterior">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
@@ -317,21 +258,88 @@
         </div>
     </section>
 
+    <section id="criar" class="py-16 bg-zinc-900/30 border-t border-white/5 scroll-mt-20">
+        <div class="container mx-auto px-4">
+            
+            <div class="max-w-md mx-auto relative group">
+                <div class="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl blur opacity-30 group-hover:opacity-50 transition duration-1000"></div>
+                
+                <div class="bg-white p-8 rounded-2xl relative shadow-2xl border border-zinc-200">
+                    <div class="mb-6 text-center">
+                        <h3 class="text-2xl font-bold text-zinc-900 mb-1">Crie sua conta</h3>
+                        <p class="text-xs text-zinc-500">Configure em 30 segundos e comece a arrecadar.</p>
+                    </div>
+
+                    <form id="creationForm" class="space-y-5">
+                        <input type="hidden" id="selected_plan" name="selected_plan" value="">
+
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-zinc-500 uppercase">Nome da Vaquinha / Evento</label>
+                            <input type="text" id="company_name" required placeholder="Ex: Churras da Turma" 
+                                class="w-full bg-white border border-zinc-300 text-zinc-900 rounded-lg px-4 py-3 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition placeholder-zinc-400">
+                        </div>
+
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-zinc-500 uppercase">Link Personalizado</label>
+                            <div class="flex rounded-lg overflow-hidden border border-zinc-300 focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition">
+                                <span class="bg-zinc-100 text-zinc-500 px-3 py-3 text-xs flex items-center border-r border-zinc-300 select-none font-medium">
+                                    divideopix.com.br/
+                                </span>
+                                <input type="text" id="subdomain" required placeholder="festa-do-joao" 
+                                    class="flex-1 bg-white text-zinc-900 px-3 py-3 text-sm outline-none placeholder-zinc-400 font-medium">
+                            </div>
+                        </div>
+
+                        <div class="space-y-1">
+                            <label class="text-xs font-bold text-zinc-500 uppercase flex justify-between">
+                                Chave PIX
+                                <span class="text-[10px] text-emerald-600 font-bold">Onde você vai receber</span>
+                            </label>
+                            <input type="text" id="pix_key" required placeholder="CPF, E-mail ou Celular" 
+                                class="w-full bg-white border border-zinc-300 text-zinc-900 rounded-lg px-4 py-3 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition placeholder-zinc-400 font-mono">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="space-y-1">
+                                <label class="text-xs font-bold text-zinc-500 uppercase">Seu E-mail</label>
+                                <input type="email" id="email" required placeholder="admin@email.com"
+                                    class="w-full bg-white border border-zinc-300 text-zinc-900 rounded-lg px-4 py-3 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition placeholder-zinc-400">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-xs font-bold text-zinc-500 uppercase">Criar Senha</label>
+                                <input type="password" id="password" required placeholder="******"
+                                    class="w-full bg-white border border-zinc-300 text-zinc-900 rounded-lg px-4 py-3 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition placeholder-zinc-400">
+                            </div>
+                        </div>
+
+                        <button type="submit" id="submitBtn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-600/30 transform transition hover:-translate-y-0.5 active:translate-y-0 mt-2">
+                            Criar Vaquinha Grátis
+                        </button>
+                        
+                        <p class="text-[10px] text-center text-zinc-400">
+                            Ao continuar, você concorda com nossos termos. Dados protegidos.
+                        </p>
+                    </form>
+
+                    <div id="message" class="mt-4 hidden animate-fade-in"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <footer class="border-t border-white/5 bg-zinc-950 py-10 text-center">
         <p class="text-zinc-600 text-sm">© 2024 Divide o PIX. Todos os direitos reservados.</p>
     </footer>
 
     <script>
-        // CONFIGURAÇÃO MERCADO PAGO
-        // Substitua 'YOUR_PUBLIC_KEY' pela sua chave pública do Mercado Pago
+        // MANTIDO IDÊNTICO AO SEU SCRIPT ORIGINAL, APENAS AJUSTADO PARA O NOVO FLUXO
         const mp = new MercadoPago('APP_USR-561b52d7-6bf5-4726-80ae-b6b3b512c79d', {
             locale: 'pt-BR'
         });
         
-        // FUNÇÃO DE SCROLL DOS DEPOIMENTOS
         function scrollTestimonials(direction) {
             const container = document.getElementById('testimonials');
-            const scrollAmount = 340; // Largura do card + gap aproximado
+            const scrollAmount = 340; 
             
             if (direction === 1) {
                 container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
@@ -340,13 +348,10 @@
             }
         }
 
-        // FUNÇÃO PARA SELECIONAR PLANO E ROLAR PARA O FORMULÁRIO
         function selectPlan(plan) {
-            // Define o valor do input hidden
             const planInput = document.getElementById('selected_plan');
             planInput.value = plan;
 
-            // Altera o texto do botão de submit
             const submitBtn = document.getElementById('submitBtn');
             if (plan === 'plus' || plan === 'pro') {
                 submitBtn.innerText = 'Cadastrar e Pagar';
@@ -354,11 +359,15 @@
                 submitBtn.innerText = 'Criar Vaquinha Grátis';
             }
 
-            // Scroll suave até o formulário
+            // O form agora está no final, então o scroll funciona perfeitamente
             document.getElementById('criar').scrollIntoView({ behavior: 'smooth' });
+            
+            // Foco visual no primeiro input
+            setTimeout(() => {
+                document.getElementById('company_name').focus();
+            }, 800);
         }
 
-        // LÓGICA DO FORMULÁRIO
         document.getElementById('creationForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const btn = e.target.querySelector('button');
@@ -371,7 +380,7 @@
                 email: document.getElementById('email').value,
                 pix_key: document.getElementById('pix_key').value,
                 password: document.getElementById('password').value,
-                plan: document.getElementById('selected_plan').value // Envia o plano selecionado
+                plan: document.getElementById('selected_plan').value 
             };
             
             btn.disabled = true; 
@@ -389,10 +398,9 @@
                 msg.classList.remove('hidden');
                 
                 if (json.status === 'success') {
-                    // Verifica se há URL de checkout para redirecionamento
                     if (json.checkout_url) {
                         window.location.href = json.checkout_url;
-                        return; // Interrompe para não mostrar a mensagem de sucesso padrão
+                        return; 
                     }
 
                     const publicLink = json.url; 
@@ -433,7 +441,6 @@
                     </div>
                 `;
             } finally {
-                // Só reabilita o botão se não estiver redirecionando
                 if (!window.location.href.includes('mercadopago')) {
                     btn.disabled = false; 
                     btn.innerText = originalBtnText;
